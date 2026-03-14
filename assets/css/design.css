@@ -1,0 +1,696 @@
+/* ============================================================
+   design.css — Améliorations visuelles GestiBoutique
+   Garde Bootstrap 5, améliore les détails
+   ============================================================ */
+
+/* ── Variables globales ──────────────────────────────────── */
+:root {
+    --gb-primary:      #1F5C99;
+    --gb-primary-dark: #153F6E;
+    --gb-primary-light:#D6E4F0;
+    --gb-radius:       12px;
+    --gb-radius-sm:    8px;
+    --gb-shadow:       0 2px 12px rgba(31,92,153,.10);
+    --gb-shadow-md:    0 4px 24px rgba(31,92,153,.14);
+    --gb-transition:   all .2s ease;
+}
+
+/* ── Corps ──────────────────────────────────────────────── */
+body {
+    background: #f0f4f8;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: .93rem;
+}
+
+/* ── Sidebar améliorée ──────────────────────────────────── */
+.sidebar {
+    box-shadow: 4px 0 20px rgba(0,0,0,.15);
+}
+
+.sidebar-brand {
+    padding: 1.4rem 1rem 1.2rem;
+    background: rgba(0,0,0,.12);
+}
+
+.sidebar-brand .brand-icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+}
+
+.sidebar-brand .brand-name {
+    font-size: 1.05rem;
+    letter-spacing: .02em;
+    text-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+/* Sous-titre boutique dans la sidebar */
+.sidebar-brand .brand-sub {
+    display: block;
+    color: rgba(255,255,255,.5);
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-top: .1rem;
+}
+
+.sidebar-menu .nav-section {
+    font-size: .66rem;
+    letter-spacing: .12em;
+    padding: 1rem 1.2rem .3rem;
+    color: rgba(255,255,255,.35);
+}
+
+.sidebar-menu .nav-link {
+    padding: .6rem 1.1rem;
+    border-radius: 0;
+    font-size: .88rem;
+    position: relative;
+    border-left: 3px solid transparent;
+    transition: var(--gb-transition);
+}
+
+.sidebar-menu .nav-link:hover {
+    background: rgba(255,255,255,.10);
+    border-left-color: rgba(255,255,255,.5);
+    color: #fff;
+    padding-left: 1.3rem;
+}
+
+.sidebar-menu .nav-link.active {
+    background: rgba(255,255,255,.16);
+    border-left-color: #fff;
+    color: #fff;
+    font-weight: 600;
+}
+
+.sidebar-menu .nav-link i {
+    font-size: 1rem;
+    width: 20px;
+    opacity: .85;
+}
+
+.sidebar-menu .nav-link.active i,
+.sidebar-menu .nav-link:hover i {
+    opacity: 1;
+}
+
+/* ── Topbar améliorée ────────────────────────────────────── */
+.topbar {
+    border-bottom: 1px solid #e8edf3;
+    padding: .7rem 1.5rem;
+    box-shadow: 0 1px 8px rgba(0,0,0,.06);
+}
+
+.topbar .page-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+}
+
+/* Breadcrumb dans la topbar */
+.topbar .topbar-breadcrumb {
+    font-size: .78rem;
+    color: #94a3b8;
+    margin-top: .05rem;
+}
+
+/* Avatar avec anneau coloré */
+.topbar .avatar {
+    width: 34px;
+    height: 34px;
+    font-size: .8rem;
+    box-shadow: 0 0 0 2px var(--gb-primary-light);
+}
+
+/* ── Cards KPI dashboard ─────────────────────────────────── */
+.kpi-card {
+    border: none !important;
+    border-radius: var(--gb-radius) !important;
+    box-shadow: var(--gb-shadow) !important;
+    transition: var(--gb-transition);
+    overflow: hidden;
+    position: relative;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--gb-shadow-md) !important;
+}
+
+.kpi-card .kpi-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.kpi-card .kpi-label {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #94a3b8;
+    margin-bottom: .25rem;
+}
+
+.kpi-card .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+}
+
+.kpi-card .kpi-footer {
+    font-size: .75rem;
+    color: #94a3b8;
+    margin-top: .4rem;
+}
+
+/* Bande décorative en haut de chaque KPI */
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}
+.kpi-bleu::before   { background: #1F5C99; }
+.kpi-vert::before   { background: #16a34a; }
+.kpi-orange::before { background: #ea580c; }
+.kpi-rouge::before  { background: #dc2626; }
+
+/* ── Cards génériques ────────────────────────────────────── */
+.card {
+    border-radius: var(--gb-radius) !important;
+    box-shadow: var(--gb-shadow) !important;
+    border: none !important;
+}
+
+.card-header {
+    background: #fff !important;
+    border-bottom: 1px solid #f0f4f8 !important;
+    border-radius: var(--gb-radius) var(--gb-radius) 0 0 !important;
+    padding: 1rem 1.25rem .8rem;
+    font-weight: 700;
+    font-size: .93rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.card-header .card-header-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .95rem;
+}
+
+/* ── Tableaux ────────────────────────────────────────────── */
+.table {
+    font-size: .875rem;
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: var(--gb-primary) !important;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: .75rem 1rem;
+    border: none !important;
+    white-space: nowrap;
+}
+
+.table thead th:first-child { border-radius: 0; }
+
+.table tbody td {
+    padding: .7rem 1rem;
+    vertical-align: middle;
+    border-color: #f0f4f8 !important;
+    color: #374151;
+}
+
+.table-hover tbody tr:hover {
+    background: #f8faff !important;
+}
+
+.table-hover tbody tr {
+    transition: background .15s;
+}
+
+/* ── Badges améliorés ────────────────────────────────────── */
+.badge {
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: .3em .65em;
+}
+
+.badge-stock-ok     { background: #dcfce7; color: #15803d; }
+.badge-stock-alerte { background: #fef9c3; color: #854d0e; }
+.badge-stock-critique{ background: #fee2e2; color: #b91c1c; }
+
+.badge-role-admin    { background: #fee2e2; color: #b91c1c; }
+.badge-role-caissier { background: #dbeafe; color: #1d4ed8; }
+.badge-role-magasinier { background: #dcfce7; color: #15803d; }
+
+/* ── Boutons améliorés ───────────────────────────────────── */
+.btn {
+    font-weight: 500;
+    border-radius: var(--gb-radius-sm);
+    transition: var(--gb-transition);
+    font-size: .875rem;
+}
+
+.btn-primary {
+    background: var(--gb-primary);
+    border-color: var(--gb-primary);
+    box-shadow: 0 2px 8px rgba(31,92,153,.25);
+}
+
+.btn-primary:hover {
+    background: var(--gb-primary-dark);
+    border-color: var(--gb-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(31,92,153,.35);
+}
+
+.btn-outline-primary {
+    color: var(--gb-primary);
+    border-color: var(--gb-primary);
+}
+
+.btn-outline-primary:hover {
+    background: var(--gb-primary);
+    border-color: var(--gb-primary);
+}
+
+.btn-sm {
+    font-size: .8rem;
+    border-radius: 6px;
+    padding: .3rem .7rem;
+}
+
+/* Bouton icône rond */
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: .9rem;
+}
+
+/* ── Formulaires ─────────────────────────────────────────── */
+.form-control, .form-select {
+    border-radius: var(--gb-radius-sm);
+    border-color: #e2e8f0;
+    font-size: .875rem;
+    transition: var(--gb-transition);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--gb-primary);
+    box-shadow: 0 0 0 .2rem rgba(31,92,153,.15);
+}
+
+.input-group-text {
+    background: var(--gb-primary-light);
+    border-color: #e2e8f0;
+    color: var(--gb-primary);
+    border-radius: var(--gb-radius-sm) 0 0 var(--gb-radius-sm);
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: .83rem;
+    color: #374151;
+    margin-bottom: .35rem;
+}
+
+/* ── Alertes flash ───────────────────────────────────────── */
+.alert {
+    border-radius: var(--gb-radius-sm);
+    border: none;
+    font-size: .875rem;
+    padding: .75rem 1rem;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.alert-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.alert-info {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.alert-warning {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+/* ── Modals améliorés ────────────────────────────────────── */
+.modal-content {
+    border-radius: var(--gb-radius) !important;
+    border: none !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2) !important;
+}
+
+.modal-header {
+    background: var(--gb-primary);
+    color: #fff;
+    border-radius: var(--gb-radius) var(--gb-radius) 0 0 !important;
+    padding: 1rem 1.25rem;
+    border: none !important;
+}
+
+.modal-header .modal-title {
+    font-size: .95rem;
+    font-weight: 700;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.modal-footer {
+    border-color: #f0f4f8 !important;
+    padding: .75rem 1.25rem;
+}
+
+/* ── Section page-header ─────────────────────────────────── */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: .85rem;
+    border-bottom: 2px solid #e8edf3;
+}
+
+.page-header h2 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--gb-primary-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.page-header h2 i {
+    font-size: 1.1rem;
+    opacity: .8;
+}
+
+.page-header .page-meta {
+    font-size: .78rem;
+    color: #94a3b8;
+    margin-top: .15rem;
+}
+
+/* ── Indicateur stock dans les listes ────────────────────── */
+.stock-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.stock-bar {
+    flex: 1;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    min-width: 50px;
+}
+
+.stock-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width .4s;
+}
+
+.stock-bar-fill.ok       { background: #16a34a; }
+.stock-bar-fill.alerte   { background: #eab308; }
+.stock-bar-fill.critique { background: #dc2626; }
+
+/* ── Stat chip (mini badge avec chiffre) ─────────────────── */
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    background: var(--gb-primary-light);
+    color: var(--gb-primary-dark);
+    border-radius: 20px;
+    padding: .2rem .7rem;
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-in {
+    animation: fadeInUp .35s ease forwards;
+}
+
+.main-content > * {
+    animation: fadeInUp .3s ease both;
+}
+
+/* Délais en cascade */
+.main-content > *:nth-child(1) { animation-delay: .03s; }
+.main-content > *:nth-child(2) { animation-delay: .07s; }
+.main-content > *:nth-child(3) { animation-delay: .11s; }
+.main-content > *:nth-child(4) { animation-delay: .15s; }
+
+/* ── List-group amélioration ─────────────────────────────── */
+.list-group-item {
+    border-color: #f0f4f8;
+    font-size: .875rem;
+    padding: .7rem 1rem;
+    transition: background .15s;
+}
+
+.list-group-item:hover {
+    background: #f8faff;
+}
+
+/* ── Page vide (empty state) ─────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    opacity: .4;
+    display: block;
+    margin-bottom: .75rem;
+}
+
+.empty-state p {
+    font-size: .9rem;
+    margin: 0;
+}
+
+/* ── Scrollbar fine ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Tooltip custom ──────────────────────────────────────── */
+[data-bs-toggle="tooltip"] { cursor: help; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .kpi-card .kpi-value { font-size: 1.3rem; }
+    .page-header { margin-bottom: 1rem; }
+    .table thead th { font-size: .72rem; padding: .6rem .7rem; }
+    .table tbody td { padding: .55rem .7rem; }
+}
+
+
+/* ── Caisse / Point de vente ─────────────────────────────── */
+.caisse-layout {
+    /* hérite la grille existante, on améliore les détails */
+}
+
+/* Améliorer les cartes produits de la caisse */
+.card-produit {
+    border-radius: var(--gb-radius) !important;
+    border: 1.5px solid transparent !important;
+    transition: var(--gb-transition), border-color .15s !important;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.card-produit:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: var(--gb-shadow-md) !important;
+    border-color: var(--gb-primary) !important;
+}
+
+.card-produit:active {
+    transform: scale(.97) !important;
+}
+
+.prod-icon-wrap {
+    border-radius: 10px !important;
+    transition: transform .2s !important;
+}
+
+.card-produit:hover .prod-icon-wrap {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+/* Panneau panier amélioré */
+.panier-panel {
+    border-radius: var(--gb-radius) !important;
+    box-shadow: var(--gb-shadow-md) !important;
+}
+
+.panier-panel .panier-header {
+    border-radius: var(--gb-radius) var(--gb-radius) 0 0;
+    background: var(--gb-primary-light);
+    padding: .85rem 1rem;
+    border-bottom: 1px solid #d0e3f5;
+}
+
+/* Ligne panier */
+.panier-ligne {
+    border-bottom: 1px solid #f0f4f8;
+    padding: .6rem .9rem;
+    transition: background .15s;
+}
+
+.panier-ligne:hover { background: #f8faff; }
+
+/* Monnaie highlight */
+.monnaie-box {
+    border-radius: var(--gb-radius-sm);
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
+    border: 1.5px solid #86efac !important;
+    padding: .75rem 1rem !important;
+    animation: fadeInUp .3s ease;
+}
+
+/* Bouton valider vente */
+#btnValider {
+    border-radius: 10px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    box-shadow: 0 4px 15px rgba(21,128,61,.3);
+    transition: var(--gb-transition);
+}
+
+#btnValider:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(21,128,61,.4);
+}
+
+/* Scan status */
+.scan-status {
+    border-radius: var(--gb-radius-sm) !important;
+    font-size: .85rem !important;
+}
+
+/* ── Rapports ─────────────────────────────────────────────── */
+.rapport-card {
+    border-radius: var(--gb-radius);
+    overflow: hidden;
+    transition: var(--gb-transition);
+}
+
+.rapport-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--gb-shadow-md) !important;
+}
+
+/* ── Messagerie ───────────────────────────────────────────── */
+.msg-item {
+    border-left: 3px solid transparent;
+    transition: var(--gb-transition);
+    cursor: pointer;
+    border-radius: 0 var(--gb-radius-sm) var(--gb-radius-sm) 0;
+    padding: .7rem 1rem;
+}
+
+.msg-item:hover { background: #f8faff; border-left-color: var(--gb-primary); }
+.msg-item.unread { border-left-color: var(--gb-primary); background: #f0f8ff; }
+.msg-item.unread .msg-subject { font-weight: 700; }
+
+/* ── Paramètres ───────────────────────────────────────────── */
+.param-panel {
+    border-radius: var(--gb-radius) !important;
+}
+
+.theme-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: var(--gb-transition);
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+
+.theme-swatch:hover, .theme-swatch.active {
+    transform: scale(1.15);
+    border-color: #fff;
+    box-shadow: 0 0 0 3px var(--gb-primary), 0 2px 8px rgba(0,0,0,.2);
+}
+
+/* ── Utilisateurs ─────────────────────────────────────────── */
+.user-row-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--gb-primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--gb-primary);
+    flex-shrink: 0;
+}
+
+/* ── Mode sombre — overrides design.css ──────────────────── */
+body.mode-sombre .kpi-card     { background: #1e293b !important; }
+body.mode-sombre .card-header  { background: #1e293b !important; border-color: #334155 !important; }
+body.mode-sombre .page-header  { border-color: #334155 !important; }
+body.mode-sombre .stat-chip    { background: #1d3a57; color: #93c5fd; }
+body.mode-sombre .list-group-item { background: #1e293b; border-color: #334155; }
+body.mode-sombre .list-group-item:hover { background: #253347; }
+body.mode-sombre .table thead th { background: #0f2d52 !important; }
+body.mode-sombre .btn-primary   { box-shadow: 0 2px 8px rgba(0,0,0,.4); }
