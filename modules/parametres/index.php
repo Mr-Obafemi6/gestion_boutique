@@ -153,24 +153,29 @@ body,.main-content{background:#0f172a!important;color:#e2e8f0!important;}
 .param-panel-header{border-color:#334155!important;}
 hr{border-color:#334155!important;}
 <?php endif;?>
-.param-layout{display:grid;grid-template-columns:220px 1fr;gap:1.25rem;}
-.param-sidebar{background:#fff;border-radius:14px;border:1px solid #e8edf2;padding:1rem;height:fit-content;}
-.param-nav{display:flex;flex-direction:column;gap:.3rem;}
-.param-nav a{display:flex;align-items:center;gap:.7rem;padding:.65rem .85rem;border-radius:9px;font-size:.88rem;font-weight:600;color:#475569;text-decoration:none;transition:all .15s;}
-.param-nav a:hover{background:#f1f5f9;color:var(--bleu);}
-.param-nav a.active{background:var(--bleu);color:#fff;}
-.param-panel{background:#fff;border-radius:14px;border:1px solid #e8edf2;}
-.param-panel-header{padding:1rem 1.4rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:.7rem;}
-.param-panel-header h5{margin:0;font-size:1rem;font-weight:700;color:#1e293b;}
-.param-panel-body{padding:1.5rem;}
+.param-layout{display:grid;grid-template-columns:240px 1fr;gap:1.5rem;}
+.param-sidebar{background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,244,248,0.8) 100%);border-radius:18px;border:1px solid rgba(226,232,240,0.8);padding:1.25rem;height:fit-content;box-shadow:0 10px 25px rgba(0,0,0,0.06);}
+.param-nav{display:flex;flex-direction:column;gap:.4rem;}
+.param-nav a{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-radius:12px;font-size:.92rem;font-weight:600;color:#475569;text-decoration:none;transition:all .2s;}
+.param-nav a:hover{background: rgba(31,92,153,0.08);color:var(--bleu);}
+.param-nav a.active{background: linear-gradient(135deg, var(--bleu), rgba(31,92,153,0.85));color:#fff;box-shadow:0 6px 18px rgba(31,92,153,0.25);}
+.param-panel{background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(245,248,252,0.9) 100%);border-radius:18px;border:1px solid rgba(226,232,240,0.8);box-shadow:0 10px 25px rgba(0,0,0,0.06);}
+.param-panel-header{padding:1.25rem 1.6rem;border-bottom:1px solid rgba(241,245,249,0.9);display:flex;align-items:center;gap:.75rem;}
+.param-panel-header h5{margin:0;font-size:1.05rem;font-weight:700;color:#1e293b;}
+.param-panel-body{padding:1.75rem;}
 .avatar-wrapper{position:relative;display:inline-block;}
-.avatar-img{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--bleu);}
-.avatar-initiales{width:90px;height:90px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;}
-.avatar-edit-btn{position:absolute;bottom:0;right:0;width:28px;height:28px;border-radius:50%;background:var(--bleu);color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.7rem;}
-.histo-item{display:flex;align-items:center;gap:1rem;padding:.7rem 0;border-bottom:1px solid #f8fafc;}
+.avatar-img{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--bleu);box-shadow:0 10px 18px rgba(31,92,153,0.2);}
+.avatar-initiales{width:96px;height:96px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;box-shadow:0 10px 18px rgba(31,92,153,0.18);}
+.avatar-edit-btn{position:absolute;bottom:0;right:0;width:30px;height:30px;border-radius:50%;background:var(--bleu);color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.75rem;transition:transform .2s,box-shadow .2s;}
+.avatar-edit-btn:hover{transform:scale(1.1);box-shadow:0 6px 12px rgba(31,92,153,0.35);}
+.histo-item{display:flex;align-items:center;gap:1rem;padding:.8rem 0;border-bottom:1px solid rgba(248,250,252,0.8);}
 .histo-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .histo-icon.login{background:#dcfce7;color:#16a34a;}
 .histo-icon.logout{background:#fee2e2;color:#dc2626;}
+.form-control{border-radius:12px;transition:border-color .2s,box-shadow .2s;}
+.form-control:focus{border-color:var(--bleu);box-shadow:0 0 0 .2rem rgba(31,92,153,0.16);}
+.btn{border-radius:12px;transition:all .2s;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,0.12);}
 @media(max-width:768px){.param-layout{grid-template-columns:1fr;}}
 </style>
 
@@ -197,7 +202,7 @@ hr{border-color:#334155!important;}
 <div class="param-panel-body">
 
     <!-- Photo de profil -->
-    <div class="d-flex align-items-center gap-4 mb-4 p-3" style="background:#f8fafc;border-radius:14px;">
+    <div class="d-flex align-items-center gap-4 mb-4 p-4" style="background: linear-gradient(135deg, rgba(248,250,252,0.8) 0%, rgba(241,245,249,0.9) 100%);border-radius:16px;border:1px solid rgba(226,232,240,0.6);box-shadow:0 6px 20px rgba(0,0,0,0.04);">
         <div class="avatar-wrapper">
             <?php if(!empty($user['avatar'])&&file_exists(__DIR__.'/../../uploads/avatars/'.$user['avatar'])):?>
             <img src="<?=APP_URL?>/uploads/avatars/<?=$user['avatar']?>" class="avatar-img" alt="Photo">

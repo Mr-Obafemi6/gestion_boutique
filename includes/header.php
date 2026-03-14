@@ -234,6 +234,55 @@
                 gap: .8rem;
             }
 
+            .topbar .user-profile {
+                display: flex;
+                align-items: center;
+                gap: .75rem;
+                padding: .35rem .6rem;
+                border-radius: 999px;
+                background: rgba(31,92,153,0.08);
+                transition: background .2s;
+            }
+            .topbar .user-profile:hover { background: rgba(31,92,153,0.12); }
+
+            .topbar .user-profile .avatar {
+                width: 42px; height: 42px;
+                border-radius: 50%;
+                overflow: hidden;
+                border: 2px solid rgba(255,255,255,0.6);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+                background: var(--bleu);
+            }
+            .topbar .user-profile .avatar img {
+                width: 100%; height: 100%; object-fit: cover;
+            }
+
+            .topbar .user-meta {
+                display: flex;
+                flex-direction: column;
+                line-height: 1.1;
+            }
+            .topbar .user-name {
+                font-weight: 700;
+                color: #1e293b;
+                font-size: .9rem;
+            }
+            .topbar .user-role {
+                font-size: .7rem;
+                padding: .15rem .5rem;
+                border-radius: 999px;
+                background: rgba(255,255,255,0.55);
+                color: #475569;
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+            }
+            .topbar .user-actions {
+                display: flex;
+                align-items: center;
+                gap: .65rem;
+            }
+
             .topbar .avatar {
                 width: 36px; height: 36px;
                 background: var(--bleu);
@@ -423,32 +472,46 @@
                     'magasinier'     => 'bi-boxes',
                     default          => 'bi-person'
                 };
+                $displayName = clean(($_SESSION['user_prenom'] ?? '').' '.($_SESSION['user_nom'] ?? ''));
             ?>
-            <span class="badge <?= $badgeClass ?> badge-role d-none d-sm-inline-flex align-items-center gap-1">
-                <i class="bi <?= $roleIcon ?>"></i><?= ucfirst($role) ?>
-            </span>
-            <!-- Cloche notification messagerie -->
-            <a href="<?= APP_URL ?>/modules/messagerie/index.php" class="position-relative" style="color:#64748b; text-decoration:none;">
-                <i class="bi bi-bell fs-5"></i>
-                <?php if ($_msgNonLus > 0): ?>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;">
-                    <?= $_msgNonLus ?>
-                </span>
-                <?php endif; ?>
-            </a>
-            <?php if (!empty($_SESSION['user_avatar'])): ?>
-            <div class="avatar" style="background:none;padding:0;overflow:hidden;">
-                <img src="<?= APP_URL ?>/uploads/avatars/<?= $_SESSION['user_avatar'] ?>?v=<?= time() ?>"
-                    style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Photo">
+
+            <div class="user-profile dropend">
+                <button class="btn btn-sm" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background:rgba(255,255,255,0);border:none;padding:0;">
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if (!empty($_SESSION['user_avatar'])): ?>
+                        <div class="avatar">
+                            <img src="<?= APP_URL ?>/uploads/avatars/<?= $_SESSION['user_avatar'] ?>?v=<?= time() ?>" alt="Photo">
+                        </div>
+                        <?php else: ?>
+                        <div class="avatar">
+                            <?= strtoupper(substr(($_SESSION['user_prenom'] ?? ''), 0, 1) . substr($_SESSION['user_nom'], 0, 1)) ?>
+                        </div>
+                        <?php endif; ?>
+                        <div class="user-meta d-none d-md-flex flex-column">
+                            <span class="user-name"><?= $displayName ?></span>
+                            <span class="user-role"><i class="bi <?= $roleIcon ?>"></i><?= ucfirst($role) ?></span>
+                        </div>
+                    </div>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="userDropdown" style="min-width:220px;">
+                    <li><a class="dropdown-item" href="<?= APP_URL ?>/modules/parametres/index.php?s=profil"><i class="bi bi-person me-2"></i>Mon profil</a></li>
+                    <li><a class="dropdown-item" href="<?= APP_URL ?>/modules/parametres/index.php"><i class="bi bi-gear me-2"></i>Paramètres</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="<?= APP_URL ?>/modules/auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+                </ul>
             </div>
-            <?php else: ?>
-            <div class="avatar">
-                <?= strtoupper(substr(($_SESSION['user_prenom'] ?? ''), 0, 1) . substr($_SESSION['user_nom'], 0, 1)) ?>
+
+            <div class="user-actions">
+                <!-- Cloche notification messagerie -->
+                <a href="<?= APP_URL ?>/modules/messagerie/index.php" class="position-relative" style="color:#64748b; text-decoration:none;">
+                    <i class="bi bi-bell fs-5"></i>
+                    <?php if ($_msgNonLus > 0): ?>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;">
+                        <?= $_msgNonLus ?>
+                    </span>
+                    <?php endif; ?>
+                </a>
             </div>
-            <?php endif; ?>
-            <span class="d-none d-md-inline fw-semibold text-muted" style="font-size:.9rem;">
-                <?= clean(($_SESSION['user_prenom'] ?? '').' '.($_SESSION['user_nom'] ?? '')) ?>
-            </span>
         </div>
     </div>
 
