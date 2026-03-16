@@ -12,6 +12,7 @@ $stockModel   = new Stock();
 $produitModel = new Produit();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierCSRF();
     $action = $_POST['action'] ?? '';
     if ($action === 'entree') {
         if (!peutFaire('stock','creer')) { setFlash('error','Action non autorisée.'); }
@@ -144,6 +145,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalEntree" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-box-arrow-in-down me-2"></i>Entrée de stock</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -195,6 +197,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalSortie" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title"><i class="bi bi-box-arrow-up me-2"></i>Sortie de stock</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -241,6 +244,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalFournisseur" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header"><h5 class="modal-title">Nouveau fournisseur</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <input type="hidden" name="action" value="add_fournisseur">

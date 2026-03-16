@@ -21,6 +21,7 @@ $stmt->execute([':id'=>$userId]);
 $user = $stmt->fetch();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierCSRF();
     $section = $_POST['section'] ?? '';
 
     if ($section === 'avatar') {
@@ -153,16 +154,18 @@ body,.main-content{background:#0f172a!important;color:#e2e8f0!important;}
 .param-panel-header{border-color:#334155!important;}
 hr{border-color:#334155!important;}
 <?php endif;?>
-.param-layout{display:grid;grid-template-columns:240px 1fr;gap:1.5rem;}
-.param-sidebar{background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,244,248,0.8) 100%);border-radius:18px;border:1px solid rgba(226,232,240,0.8);padding:1.25rem;height:fit-content;box-shadow:0 10px 25px rgba(0,0,0,0.06);}
-.param-nav{display:flex;flex-direction:column;gap:.4rem;}
-.param-nav a{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-radius:12px;font-size:.92rem;font-weight:600;color:#475569;text-decoration:none;transition:all .2s;}
-.param-nav a:hover{background: rgba(31,92,153,0.08);color:var(--bleu);}
-.param-nav a.active{background: linear-gradient(135deg, var(--bleu), rgba(31,92,153,0.85));color:#fff;box-shadow:0 6px 18px rgba(31,92,153,0.25);}
-.param-panel{background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(245,248,252,0.9) 100%);border-radius:18px;border:1px solid rgba(226,232,240,0.8);box-shadow:0 10px 25px rgba(0,0,0,0.06);}
-.param-panel-header{padding:1.25rem 1.6rem;border-bottom:1px solid rgba(241,245,249,0.9);display:flex;align-items:center;gap:.75rem;}
-.param-panel-header h5{margin:0;font-size:1.05rem;font-weight:700;color:#1e293b;}
-.param-panel-body{padding:1.75rem;}
+.param-container{max-width:1200px;margin:0 auto;padding:1.5rem;}
+.param-tabs .nav-tabs{border-bottom:1px solid #e2e8f0;margin-bottom:1.5rem;}
+.param-tabs .nav-link{border-radius:12px 12px 0 0;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;color:#475569;font-weight:600;padding:.75rem 1.25rem;transition:all .2s;}
+.param-tabs .nav-link:hover{background:#e2e8f0;color:#1e293b;}
+.param-tabs .nav-link.active{background:#fff;color:var(--bleu);border-color:#e2e8f0 #e2e8f0 #fff;}
+.param-tab-content{background:#fff;border:1px solid #e2e8f0;border-radius:0 12px 12px 12px;padding:2rem;animation:fadeIn .5s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.param-section{margin-bottom:2rem;}
+.param-section h6{font-size:1.1rem;font-weight:700;color:#1e293b;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
+.param-section h6 i{color:var(--bleu);}
+.param-card{background: linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%);border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+.param-card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.08);}
 .avatar-wrapper{position:relative;display:inline-block;}
 .avatar-img{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--bleu);box-shadow:0 10px 18px rgba(31,92,153,0.2);}
 .avatar-initiales{width:96px;height:96px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;box-shadow:0 10px 18px rgba(31,92,153,0.18);}
@@ -179,28 +182,33 @@ hr{border-color:#334155!important;}
 @media(max-width:768px){.param-layout{grid-template-columns:1fr;}}
 </style>
 
-<div class="param-layout">
-<div class="param-sidebar">
-    <div style="font-size:.7rem;font-weight:700;color:#94a3b8;letter-spacing:.08em;padding:.2rem .5rem .6rem;text-transform:uppercase;">Parametres</div>
-    <nav class="param-nav">
-        <a href="?s=profil"    class="<?=$section==='profil'   ?'active':''?>"><i class="bi bi-person-circle"></i> Mon profil</a>
-        <a href="?s=boutique"  class="<?=$section==='boutique' ?'active':''?>"><i class="bi bi-shop"></i> Boutique</a>
-        <a href="?s=securite"  class="<?=$section==='securite' ?'active':''?>"><i class="bi bi-shield-lock"></i> Securite</a>
-        <?php if($_SESSION['user_role']==='administrateur'): ?>
-        <a href="?s=permissions" class="<?=$section==='permissions'?'active':''?>"><i class="bi bi-toggles"></i> Permissions</a>
-        <?php endif; ?>
-    </nav>
-</div>
+<div class="param-container">
+<ul class="nav nav-tabs param-tabs" id="paramTabs" role="tablist">
+<li class="nav-item" role="presentation">
+<a href="?s=profil" class="nav-link <?=$section==='profil'?'active':''?>"><i class="bi bi-person-circle me-2"></i>Mon profil</a>
+</li>
+<li class="nav-item" role="presentation">
+<a href="?s=boutique" class="nav-link <?=$section==='boutique'?'active':''?>"><i class="bi bi-shop me-2"></i>Boutique</a>
+</li>
+<li class="nav-item" role="presentation">
+<a href="?s=securite" class="nav-link <?=$section==='securite'?'active':''?>"><i class="bi bi-shield-lock me-2"></i>Sécurité</a>
+</li>
+<?php if($_SESSION['user_role']==='administrateur'): ?>
+<li class="nav-item" role="presentation">
+<a href="?s=permissions" class="nav-link <?=$section==='permissions'?'active':''?>"><i class="bi bi-toggles me-2"></i>Permissions</a>
+</li>
+<?php endif; ?>
+</ul>
 
-<div class="param-panel">
+<div class="tab-content param-tab-content" id="paramTabsContent">
+<div class="tab-pane fade <?=$section==='profil'?'show active':''?>" id="profil" role="tabpanel" aria-labelledby="profil-tab">
 <?php $f=getFlash(); if($f):?>
 <div class="alert alert-<?=$f['type']?> alert-dismissible mx-4 mt-3 mb-0 fade show"><?=$f['msg']?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 <?php endif;?>
 
-<?php if($section==='profil'):?>
-<div class="param-panel-header"><i class="bi bi-person-circle fs-5" style="color:var(--bleu)"></i><h5>Mon profil</h5></div>
-<div class="param-panel-body">
-
+<div class="param-section">
+<h6><i class="bi bi-person-circle"></i>Informations personnelles</h6>
+<div class="param-card">
     <!-- Photo de profil -->
     <div class="d-flex align-items-center gap-4 mb-4 p-4" style="background: linear-gradient(135deg, rgba(248,250,252,0.8) 0%, rgba(241,245,249,0.9) 100%);border-radius:16px;border:1px solid rgba(226,232,240,0.6);box-shadow:0 6px 20px rgba(0,0,0,0.04);">
         <div class="avatar-wrapper">
@@ -217,6 +225,7 @@ hr{border-color:#334155!important;}
             <span class="badge mt-1" style="background:var(--bleu);"><?=ucfirst($user['role'])?></span>
             <?php if(!empty($user['avatar'])):?>
             <form method="POST" class="d-inline ms-2">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                 <input type="hidden" name="section" value="suppr_avatar">
                 <button class="btn btn-sm btn-outline-danger mt-1" onclick="return confirm('Supprimer la photo ?')"><i class="bi bi-trash3 me-1"></i>Supprimer</button>
             </form>
@@ -224,11 +233,13 @@ hr{border-color:#334155!important;}
         </div>
     </div>
     <form method="POST" enctype="multipart/form-data" id="formAvatar">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <input type="hidden" name="section" value="avatar">
         <input type="file" id="inputAvatar" name="avatar" accept="image/*" class="d-none">
     </form>
 
     <form method="POST">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <input type="hidden" name="section" value="profil">
         <div class="row g-3">
             <div class="col-md-6"><label class="form-label fw-semibold">Nom</label><input type="text" name="nom" class="form-control" value="<?=clean($user['nom'])?>" required></div>
@@ -237,10 +248,14 @@ hr{border-color:#334155!important;}
         </div>
         <button type="submit" class="btn mt-3 fw-semibold" style="background:var(--bleu);color:#fff;"><i class="bi bi-check2 me-1"></i>Enregistrer le profil</button>
     </form>
+</div>
+</div>
 
-    <hr class="my-4">
-    <h6 class="fw-bold mb-3"><i class="bi bi-key me-2 text-warning"></i>Changer le mot de passe</h6>
+<div class="param-section">
+<h6><i class="bi bi-key"></i>Changer le mot de passe</h6>
+<div class="param-card">
     <form method="POST">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <input type="hidden" name="section" value="password">
         <div class="row g-3">
             <div class="col-12"><label class="form-label fw-semibold">Mot de passe actuel</label><input type="password" name="mdp_actuel" class="form-control" required placeholder="........"></div>
@@ -251,17 +266,21 @@ hr{border-color:#334155!important;}
         <button type="submit" class="btn btn-warning mt-3 fw-semibold"><i class="bi bi-shield-lock me-1"></i>Changer le mot de passe</button>
     </form>
 </div>
+</div>
+</div>
 
-<?php elseif($section==='boutique'):?>
-<div class="param-panel-header"><i class="bi bi-shop fs-5" style="color:var(--bleu)"></i><h5>Parametres de la boutique</h5></div>
-<div class="param-panel-body">
+<div class="tab-pane fade <?=$section==='boutique'?'show active':''?>" id="boutique" role="tabpanel" aria-labelledby="boutique-tab">
+<div class="param-section">
+<h6><i class="bi bi-shop"></i>Paramètres de la boutique</h6>
+<div class="param-card">
     <form method="POST">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <input type="hidden" name="section" value="boutique">
         <div class="row g-3">
             <div class="col-md-6"><label class="form-label fw-semibold">Nom de la boutique</label><input type="text" name="boutique_nom" class="form-control" value="<?=clean($p['boutique_nom'])?>" required oninput="document.getElementById('prev_nom').textContent=this.value"></div>
             <div class="col-md-6"><label class="form-label fw-semibold">Devise</label><select name="boutique_devise" class="form-select"><?php foreach(['FCFA','EUR','USD','XOF','GHS'] as $dev):?><option <?=$p['boutique_devise']===$dev?'selected':''?>><?=$dev?></option><?php endforeach;?></select></div>
             <div class="col-12"><label class="form-label fw-semibold">Adresse</label><input type="text" name="boutique_adresse" class="form-control" value="<?=clean($p['boutique_adresse'])?>" oninput="document.getElementById('prev_adresse').textContent=this.value"></div>
-            <div class="col-md-6"><label class="form-label fw-semibold">Telephone</label><input type="text" name="boutique_tel" class="form-control" value="<?=clean($p['boutique_tel'])?>" placeholder="+228 XX XX XX XX"></div>
+            <div class="col-md-6"><label class="form-label fw-semibold">Téléphone</label><input type="text" name="boutique_tel" class="form-control" value="<?=clean($p['boutique_tel'])?>" placeholder="+228 XX XX XX XX"></div>
             <div class="col-md-6"><label class="form-label fw-semibold">Email</label><input type="email" name="boutique_email" class="form-control" value="<?=clean($p['boutique_email'])?>"></div>
             <div class="col-12"><label class="form-label fw-semibold">Message pied de ticket</label><textarea name="ticket_footer" class="form-control" rows="2" oninput="document.getElementById('prev_footer').textContent=this.value"><?=clean($p['ticket_footer'])?></textarea></div>
         </div>
@@ -278,10 +297,16 @@ hr{border-color:#334155!important;}
         <button type="submit" class="btn mt-4 fw-semibold" style="background:var(--bleu);color:#fff;"><i class="bi bi-check2 me-1"></i>Sauvegarder</button>
     </form>
 </div>
+</div>
+</div>
 
-<?php elseif($section==='permissions'):?>
-<div class="param-panel-header"><i class="bi bi-toggles fs-5" style="color:var(--bleu)"></i><h5>Permissions par rôle</h5></div>
-<div class="param-panel-body">
+<div class="tab-pane fade <?=$section==='permissions'?'show active':''?>" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
+
+<div class="param-section">
+
+<h6><i class="bi bi-toggles"></i>Permissions par rôle</h6>
+
+<div class="param-card">
 
 <div class="alert alert-info mb-4" style="background:#eff6ff;color:#1e40af;border:none;border-radius:10px;font-size:.85rem;">
     <i class="bi bi-info-circle-fill me-2"></i>
@@ -315,6 +340,7 @@ hr{border-color:#334155!important;}
 </style>
 
 <form method="POST">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
     <input type="hidden" name="section" value="permissions">
 
     <!-- Onglets rôles -->
@@ -424,10 +450,14 @@ document.querySelectorAll('.perm-check:not(.check-all-row)').forEach(chk => {
     });
 });
 </script>
+</div>
+</div>
+</div>
 
-<?php elseif($section==='securite'):?>
-<div class="param-panel-header"><i class="bi bi-shield-lock fs-5" style="color:var(--bleu)"></i><h5>Securite et Connexions</h5></div>
-<div class="param-panel-body">
+<div class="tab-pane fade <?=$section==='securite'?'show active':''?>" id="securite" role="tabpanel" aria-labelledby="securite-tab">
+<div class="param-section">
+<h6><i class="bi bi-shield-lock"></i>Securite et Connexions</h6>
+<div class="param-card">
     <div class="row g-3 mb-4">
         <div class="col-md-4"><div class="p-3 rounded-3 text-center" style="background:var(--bleu-clair);"><div style="font-size:1.5rem;font-weight:700;color:var(--bleu);"><?=count($historique)?></div><div style="font-size:.78rem;color:#64748b;">Connexions</div></div></div>
         <div class="col-md-4"><div class="p-3 rounded-3 text-center" style="background:#dcfce7;"><div style="font-size:1.5rem;font-weight:700;color:#16a34a;"><?=count(array_filter($historique,fn($h)=>$h['action']==='login'))?></div><div style="font-size:.78rem;color:#64748b;">Ouvertures session</div></div></div>
@@ -449,7 +479,8 @@ document.querySelectorAll('.perm-check:not(.check-all-row)').forEach(chk => {
         <a href="<?=APP_URL?>/modules/auth/logout.php" class="btn btn-outline-danger btn-sm fw-semibold"><i class="bi bi-box-arrow-right me-1"></i>Se deconnecter</a>
     </div>
 </div>
-<?php endif;?>
+</div>
+</div>
 </div>
 </div>
 

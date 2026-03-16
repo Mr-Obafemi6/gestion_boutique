@@ -9,7 +9,8 @@ requireLogin();
 $db = getDB();
 
 // ── Statistiques du jour ─────────────────────────────────────
-$today = date('Y-m-d');
+$today     = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
 
 $stmt = $db->prepare("
     SELECT COUNT(id) AS nb_ventes, COALESCE(SUM(total_net),0) AS ca_jour
@@ -19,32 +20,114 @@ $stmt = $db->prepare("
 $stmt->execute([':today' => $today]);
 $statsJour = $stmt->fetch();
 
-// ── Total produits ───────────────────────────────────────────
-$nbProduits = $db->query("SELECT COUNT(id) FROM produits WHERE statut = 'actif'")->fetchColumn();
+// ── Statistiques d'hier (pour comparaison) ───────────────────
+$stmtHier = $db->prepare("
+    SELECT COUNT(id) AS nb_ventes, COALESCE(SUM(total_net),0) AS ca_jour
+    FROM ventes
+    WHERE DATE(created_at) = :hier AND statut = 'validee'
+");
+$stmtHier->execute([':hier' => $yesterday]);
+$statsHier = $stmtHier->fetch();
 
-// ── Stock critique ───────────────────────────────────────────
-$stockCritique = $db->query("SELECT * FROM v_stock_critique LIMIT 5")->fetchAll();
-$nbCritique    = $db->query("SELECT COUNT(*) FROM v_stock_critique")->fetchColumn();
+// ── Statistiques du mois en cours ────────────────────────────
+$stmtMois = $db->prepare("
+    SELECT COUNT(id) AS nb_ventes, COALESCE(SUM(total_net),0) AS ca_mois
+    FROM ventes
+    WHERE YEAR(created_at)  = YEAR(CURDATE())
+      AND MONTH(created_at) = MONTH(CURDATE())
+      AND statut = 'validee'
+");
+$stmtMois->execute();
+$statsMois = $stmtMois->fetch();
+
+// ── Statistiques du mois précédent (pour comparaison mois) ───
+$stmtMoisPrec = $db->prepare("
+    SELECT COALESCE(SUM(total_net),0) AS ca_mois
+    FROM ventes
+    WHERE YEAR(created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+      AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+      AND statut = 'validee'
+");
+$stmtMoisPrec->execute();
+$statsMoisPrec = $stmtMoisPrec->fetch();
+
+// ── Helpers comparaison ──────────────────────────────────────
+function calcEvolution(float $avant, float $apres): array {
+    if ($avant <= 0) {
+        return ['pct' => null, 'sens' => 'neutre', 'label' => 'Nouveau'];
+    }
+    $pct = round(($apres - $avant) / $avant * 100, 1);
+    if ($pct > 0)  return ['pct' => $pct,    'sens' => 'hausse', 'label' => '+' . $pct . '%'];
+    if ($pct < 0)  return ['pct' => abs($pct),'sens' => 'baisse', 'label' => $pct . '%'];
+    return ['pct' => 0, 'sens' => 'neutre', 'label' => '='];
+}
+
+$evoCA     = calcEvolution((float)$statsHier['ca_jour'],   (float)$statsJour['ca_jour']);
+$evoVentes = calcEvolution((float)$statsHier['nb_ventes'], (float)$statsJour['nb_ventes']);
+$evoMois   = calcEvolution((float)$statsMoisPrec['ca_mois'], (float)$statsMois['ca_mois']);
+
+// ── Total produits ───────────────────────────────────────────
+$stmtProd = $db->prepare("SELECT COUNT(id) FROM produits WHERE statut = 'actif'");
+$stmtProd->execute();
+$nbProduits = (int)$stmtProd->fetchColumn();
+
+// ── Stock critique ────────────────────────────────────────────
+// Utilise prepare() + fallback direct sur produits si la vue n'existe pas
+try {
+    $stmtCritique = $db->prepare("SELECT * FROM v_stock_critique LIMIT 5");
+    $stmtCritique->execute();
+    $stockCritique = $stmtCritique->fetchAll();
+
+    $stmtNb = $db->prepare("SELECT COUNT(*) FROM v_stock_critique");
+    $stmtNb->execute();
+    $nbCritique = (int)$stmtNb->fetchColumn();
+} catch (Exception $e) {
+    // Fallback : requête directe si la vue v_stock_critique n'existe pas encore
+    $stmtCritique = $db->prepare("
+        SELECT p.id, p.reference, p.nom, c.nom AS categorie,
+               p.stock_actuel, p.seuil_alerte,
+               (p.seuil_alerte - p.stock_actuel) AS ecart
+        FROM produits p
+        JOIN categories c ON p.categorie_id = c.id
+        WHERE p.stock_actuel <= p.seuil_alerte
+          AND p.statut = 'actif'
+        ORDER BY ecart DESC
+        LIMIT 5
+    ");
+    $stmtCritique->execute();
+    $stockCritique = $stmtCritique->fetchAll();
+
+    $stmtNb = $db->prepare("
+        SELECT COUNT(*) FROM produits
+        WHERE stock_actuel <= seuil_alerte AND statut = 'actif'
+    ");
+    $stmtNb->execute();
+    $nbCritique = (int)$stmtNb->fetchColumn();
+}
 
 // ── Dernières ventes ─────────────────────────────────────────
-$dernieresVentes = $db->query("
+$stmtDernieres = $db->prepare("
     SELECT v.reference, v.total_net, v.created_at, u.nom, u.prenom
     FROM ventes v
     JOIN utilisateurs u ON v.utilisateur_id = u.id
     WHERE v.statut = 'validee'
     ORDER BY v.created_at DESC
     LIMIT 6
-")->fetchAll();
+");
+$stmtDernieres->execute();
+$dernieresVentes = $stmtDernieres->fetchAll();
 
 // ── CA des 7 derniers jours (pour graphique) ─────────────────
-$ca7j = $db->query("
+$stmtCa7 = $db->prepare("
     SELECT DATE(created_at) AS jour, COALESCE(SUM(total_net),0) AS ca
     FROM ventes
     WHERE statut = 'validee'
       AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     GROUP BY DATE(created_at)
     ORDER BY jour ASC
-")->fetchAll();
+");
+$stmtCa7->execute();
+$ca7j = $stmtCa7->fetchAll();
 
 $labels  = array_column($ca7j, 'jour');
 $valeurs = array_column($ca7j, 'ca');
@@ -55,6 +138,7 @@ require_once __DIR__ . '/includes/header.php';
 
 <!-- ── KPI Cards ─────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
+
     <!-- CA du jour -->
     <div class="col-6 col-md-3">
         <div class="card kpi-card kpi-bleu h-100">
@@ -67,7 +151,12 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="kpi-value" style="color:#1F5C99; font-size:1.25rem;">
                         <?= formatMontant((float)$statsJour['ca_jour']) ?>
                     </div>
-                    <div class="kpi-footer">Chiffre d'affaires</div>
+                    <div class="kpi-footer d-flex align-items-center gap-1">
+                        <?php $e=$evoCA; $ic=$e['sens']==='hausse'?'bi-arrow-up-short':($e['sens']==='baisse'?'bi-arrow-down-short':'bi-dash'); $clr=$e['sens']==='hausse'?'#16a34a':($e['sens']==='baisse'?'#dc2626':'#64748b'); ?>
+                        <i class="bi <?= $ic ?>" style="color:<?= $clr ?>;font-size:1rem;"></i>
+                        <span style="font-size:.72rem;color:<?= $clr ?>;font-weight:600;"><?= $e['label'] ?></span>
+                        <span style="font-size:.72rem;color:#94a3b8;">vs hier</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -83,23 +172,35 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="flex-grow-1">
                     <div class="kpi-label">Ventes</div>
                     <div class="kpi-value" style="color:#16a34a;"><?= $statsJour['nb_ventes'] ?></div>
-                    <div class="kpi-footer">Transactions du jour</div>
+                    <div class="kpi-footer d-flex align-items-center gap-1">
+                        <?php $e=$evoVentes; $ic=$e['sens']==='hausse'?'bi-arrow-up-short':($e['sens']==='baisse'?'bi-arrow-down-short':'bi-dash'); $clr=$e['sens']==='hausse'?'#16a34a':($e['sens']==='baisse'?'#dc2626':'#64748b'); ?>
+                        <i class="bi <?= $ic ?>" style="color:<?= $clr ?>;font-size:1rem;"></i>
+                        <span style="font-size:.72rem;color:<?= $clr ?>;font-weight:600;"><?= $e['label'] ?></span>
+                        <span style="font-size:.72rem;color:#94a3b8;">vs hier (<?= $statsHier['nb_ventes'] ?>)</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Produits actifs -->
+    <!-- CA du mois -->
     <div class="col-6 col-md-3">
         <div class="card kpi-card kpi-orange h-100">
             <div class="card-body d-flex align-items-center gap-3 p-3">
                 <div class="kpi-icon" style="background:#ffedd5;">
-                    <i class="bi bi-box-seam-fill" style="color:#ea580c;"></i>
+                    <i class="bi bi-calendar-month-fill" style="color:#ea580c;"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <div class="kpi-label">Produits</div>
-                    <div class="kpi-value" style="color:#ea580c;"><?= $nbProduits ?></div>
-                    <div class="kpi-footer">Références actives</div>
+                    <div class="kpi-label">CA du mois</div>
+                    <div class="kpi-value" style="color:#ea580c;font-size:1.05rem;">
+                        <?= formatMontant((float)$statsMois['ca_mois']) ?>
+                    </div>
+                    <div class="kpi-footer d-flex align-items-center gap-1">
+                        <?php $e=$evoMois; $ic=$e['sens']==='hausse'?'bi-arrow-up-short':($e['sens']==='baisse'?'bi-arrow-down-short':'bi-dash'); $clr=$e['sens']==='hausse'?'#16a34a':($e['sens']==='baisse'?'#dc2626':'#64748b'); ?>
+                        <i class="bi <?= $ic ?>" style="color:<?= $clr ?>;font-size:1rem;"></i>
+                        <span style="font-size:.72rem;color:<?= $clr ?>;font-weight:600;"><?= $e['label'] ?></span>
+                        <span style="font-size:.72rem;color:#94a3b8;">vs mois préc.</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,7 +216,18 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="flex-grow-1">
                     <div class="kpi-label">Stock critique</div>
                     <div class="kpi-value" style="color:#dc2626;"><?= $nbCritique ?></div>
-                    <div class="kpi-footer">Produits à réapprovisionner</div>
+                    <div class="kpi-footer">
+                        <?php if ($nbCritique === 0): ?>
+                            <span style="font-size:.72rem;color:#16a34a;font-weight:600;">
+                                <i class="bi bi-check-circle-fill me-1"></i>Tout est OK
+                            </span>
+                        <?php else: ?>
+                            <a href="<?= APP_URL ?>/modules/stock/mouvements.php"
+                               style="font-size:.72rem;color:#dc2626;font-weight:600;text-decoration:none;">
+                                Voir les produits →
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>

@@ -84,7 +84,25 @@ class Stock {
     }
 
     public function getStockCritique(): array {
-        return $this->db->query("SELECT * FROM v_stock_critique")->fetchAll();
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM v_stock_critique");
+            $stmt->execute();
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            // Fallback si la vue n'existe pas encore
+            $stmt = $this->db->prepare("
+                SELECT p.id, p.reference, p.nom, c.nom AS categorie,
+                       p.stock_actuel, p.seuil_alerte,
+                       (p.seuil_alerte - p.stock_actuel) AS ecart
+                FROM produits p
+                JOIN categories c ON p.categorie_id = c.id
+                WHERE p.stock_actuel <= p.seuil_alerte
+                  AND p.statut = 'actif'
+                ORDER BY ecart DESC
+            ");
+            $stmt->execute();
+            return $stmt->fetchAll();
+        }
     }
 
     public function getFournisseurs(): array {

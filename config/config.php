@@ -143,6 +143,25 @@ function requirePermission(string $module, string $action): void {
 function invaliderPermissions(): void {
     unset($_SESSION['permissions']);
 }
+
+/**
+ * Vérifie le token CSRF d'une requête POST.
+ * Redirige avec message d'erreur si invalide.
+ */
+function verifierCSRF(): void {
+    if (
+        empty($_POST['csrf_token']) ||
+        empty($_SESSION['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+    ) {
+        setFlash('error', 'Requête invalide (CSRF). Veuillez réessayer.');
+        $referer = $_SERVER['HTTP_REFERER'] ?? APP_URL . '/dashboard.php';
+        redirect($referer);
+    }
+    // Régénérer après chaque POST validé
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 function setFlash(string $type, string $message): void {
     $_SESSION['flash'] = ['type' => $type, 'message' => $message];
 }

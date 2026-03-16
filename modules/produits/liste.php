@@ -11,6 +11,7 @@ $produitModel = new Produit();
 
 // ── Traitements POST ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierCSRF();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'creer') {
@@ -29,13 +30,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!peutFaire('produits','creer')) { setFlash('error','Action non autorisée.'); }
         else { $produitModel->createCategorie($_POST['nom_cat'] ?? '', $_POST['desc_cat'] ?? ''); setFlash('success', 'Catégorie ajoutée.'); }
     }
-    redirect(APP_URL . '/modules/produits/liste.php?' . http_build_query(['q'=>$_POST['q']??'','cat'=>$_POST['cat_filter']??$_POST['cat']??0]));
+    redirect(APP_URL . '/modules/produits/liste.php?' . http_build_query(['q'=>$_POST['q']??'','cat'=>$_POST['cat_filter']??$_POST['cat']??0,'page'=>1]));
 }
 
 $search    = clean($_GET['q']   ?? '');
 $catFilter = (int)($_GET['cat'] ?? 0);
-$produits  = $produitModel->getAll($search, $catFilter);
+
+// ── Pagination ────────────────────────────────────────────────
+const PAR_PAGE  = 15;
+$page           = max(1, (int)($_GET['page'] ?? 1));
+$totalProduits  = $produitModel->getCount($search, $catFilter);
+$totalPages     = max(1, (int)ceil($totalProduits / PAR_PAGE));
+$page           = min($page, $totalPages); // borne supérieure
+$offset         = ($page - 1) * PAR_PAGE;
+
+// Pour l'export CSV on récupère tout (sans limite)
+$produits  = $produitModel->getAll($search, $catFilter, PAR_PAGE, $offset);
 $categories= $produitModel->getCategories();
+
+// ── Export CSV ───────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    if (!peutFaire('produits', 'exporter')) redirect(APP_URL . '/includes/acces_refuse.php');
+    // Export sans limite de pagination
+    $tousLesProduits = $produitModel->getAll($search, $catFilter);
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="produits_' . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8 (Excel)
+
+    // En-têtes
+    fputcsv($out, [
+        'Référence', 'Nom', 'Catégorie', 'Code-barres',
+        'Prix achat (FCFA)', 'Prix vente (FCFA)', 'Marge (FCFA)', 'Taux marge %',
+        'Stock actuel', 'Unité', 'Seuil alerte', 'Statut',
+    ], ';');
+
+    // Lignes
+    foreach ($tousLesProduits as $p) {
+        $marge    = (float)$p['prix_vente'] - (float)$p['prix_achat'];
+        $tauxMarge= $p['prix_vente'] > 0
+            ? round($marge / $p['prix_vente'] * 100, 1)
+            : 0;
+        $statut   = $p['stock_actuel'] <= $p['seuil_alerte'] ? 'Stock critique' : 'OK';
+
+        fputcsv($out, [
+            $p['reference'],
+            $p['nom'],
+            $p['categorie_nom'],
+            $p['code_barre'] ?? '',
+            $p['prix_achat'],
+            $p['prix_vente'],
+            $marge,
+            $tauxMarge . ' %',
+            $p['stock_actuel'],
+            $p['unite_mesure'],
+            $p['seuil_alerte'],
+            $statut,
+        ], ';');
+    }
+    fclose($out);
+    exit;
+}
 
 $pageTitle = "Gestion des produits";
 require_once __DIR__ . '/../../includes/header.php';
@@ -46,10 +102,20 @@ require_once __DIR__ . '/../../includes/header.php';
     <div>
         <h2><i class="bi bi-box-seam-fill"></i> Produits</h2>
         <div class="page-meta">
-            <span class="stat-chip"><i class="bi bi-grid-3x3-gap"></i> <?= count($produits) ?> produit(s) trouvé(s)</span>
+            <span class="stat-chip"><i class="bi bi-grid-3x3-gap"></i> <?= $totalProduits ?> produit(s) trouvé(s)</span>
         </div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        <?php if(peutFaire('produits','exporter')): ?>
+        <a href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&export=csv"
+           class="btn btn-outline-success btn-sm fw-semibold">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
+        </a>
+        <a href="<?= APP_URL ?>/modules/pdf/produits.php?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>"
+           target="_blank" class="btn btn-outline-danger btn-sm fw-semibold">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF
+        </a>
+        <?php endif; ?>
         <?php if(peutFaire('produits','creer')): ?>
         <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCategorie">
             <i class="bi bi-tag-fill me-1"></i>Catégorie
@@ -65,6 +131,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <!-- ── Filtres ───────────────────────────────────────────────── -->
 <form method="GET" class="row g-2 mb-3">
+    <input type="hidden" name="page" value="1">
     <div class="col-md-6">
         <div class="input-group">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -143,6 +210,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <!-- Supprimer -->
                         <?php if(peutFaire('produits','supprimer')): ?>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer ce produit ?');">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                             <input type="hidden" name="action" value="supprimer">
                             <input type="hidden" name="id" value="<?= $p['id'] ?>">
                             <button class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">
@@ -159,12 +227,87 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
+<!-- ── Pagination ─────────────────────────────────────────────── -->
+<?php if ($totalPages > 1): ?>
+<div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2">
+
+    <!-- Info résultats -->
+    <small class="text-muted">
+        Affichage <?= ($offset + 1) ?> – <?= min($offset + PAR_PAGE, $totalProduits) ?>
+        sur <?= $totalProduits ?> produits
+        &nbsp;·&nbsp; Page <?= $page ?> / <?= $totalPages ?>
+    </small>
+
+    <!-- Navigation pages -->
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <!-- Précédent -->
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&page=<?= $page - 1 ?>">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+
+            <?php
+            // Fenêtre de pages : toujours afficher 1, dernière, et pages autour de la courante
+            $fenetre = 2; // pages de chaque côté
+            $debut   = max(2, $page - $fenetre);
+            $fin     = min($totalPages - 1, $page + $fenetre);
+            ?>
+
+            <!-- Page 1 toujours visible -->
+            <li class="page-item <?= $page === 1 ? 'active' : '' ?>">
+                <a class="page-link" href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&page=1">1</a>
+            </li>
+
+            <!-- Ellipse gauche -->
+            <?php if ($debut > 2): ?>
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            <?php endif; ?>
+
+            <!-- Pages intermédiaires -->
+            <?php for ($i = $debut; $i <= $fin; $i++): ?>
+                <li class="page-item <?= $page === $i ? 'active' : '' ?>">
+                    <a class="page-link" href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&page=<?= $i ?>"><?= $i ?></a>
+                </li>
+            <?php endfor; ?>
+
+            <!-- Ellipse droite -->
+            <?php if ($fin < $totalPages - 1): ?>
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            <?php endif; ?>
+
+            <!-- Dernière page toujours visible -->
+            <?php if ($totalPages > 1): ?>
+            <li class="page-item <?= $page === $totalPages ? 'active' : '' ?>">
+                <a class="page-link" href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&page=<?= $totalPages ?>"><?= $totalPages ?></a>
+            </li>
+            <?php endif; ?>
+
+            <!-- Suivant -->
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="?q=<?= urlencode($search) ?>&cat=<?= $catFilter ?>&page=<?= $page + 1 ?>">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+    <!-- Sélecteur de taille de page (info) -->
+    <small class="text-muted"><?= PAR_PAGE ?> par page</small>
+
+</div>
+<?php endif; ?>
+
 <!-- ══════════ MODALS ══════════ -->
 
 <!-- Modal : Créer produit -->
 <div class="modal fade" id="modalCreer" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header" style="background:var(--bleu);color:#fff;">
                 <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouveau produit</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -246,6 +389,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalModifier" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header" style="background:#153F6E;color:#fff;">
                 <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le produit</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -290,6 +434,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalCategorie" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header"><h5 class="modal-title">Nouvelle catégorie</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <input type="hidden" name="action" value="add_categorie">

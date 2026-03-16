@@ -9,7 +9,23 @@ class Produit {
 
     public function __construct() { $this->db = getDB(); }
 
-    public function getAll(string $search = '', int $categorie = 0): array {
+    public function getCount(string $search = '', int $categorie = 0): int {
+        $sql    = "SELECT COUNT(*) FROM produits p WHERE p.statut = 'actif'";
+        $params = [];
+        if ($search) {
+            $sql .= " AND (p.nom LIKE :s OR p.reference LIKE :s2)";
+            $params[':s'] = "%$search%"; $params[':s2'] = "%$search%";
+        }
+        if ($categorie > 0) {
+            $sql .= " AND p.categorie_id = :cat";
+            $params[':cat'] = $categorie;
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function getAll(string $search = '', int $categorie = 0, int $limit = 0, int $offset = 0): array {
         $sql = "SELECT p.*, c.nom AS categorie_nom
                 FROM produits p
                 JOIN categories c ON p.categorie_id = c.id
@@ -24,6 +40,9 @@ class Produit {
             $params[':cat'] = $categorie;
         }
         $sql .= " ORDER BY p.nom ASC";
+        if ($limit > 0) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+        }
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();

@@ -13,7 +13,7 @@ class Vente {
      * Enregistre une vente complète avec ses lignes.
      * $panier = [['produit_id'=>X, 'quantite'=>Y, 'prix_unitaire'=>Z], ...]
      */
-    public function enregistrer(array $panier, float $remise = 0, float $montantRecu = 0): array|string {
+    public function enregistrer(array $panier, float $remise = 0, float $montantRecu = 0, string $note = ''): array|string {
         if (empty($panier)) return "Le panier est vide.";
 
         // Calcul des totaux
@@ -22,16 +22,20 @@ class Vente {
         $totalNet = max(0, $totalHT - $remise);
         $monnaie  = max(0, $montantRecu - $totalNet);
 
+        // Nettoyer la note
+        $note = trim($note);
+        $note = $note !== '' ? mb_substr($note, 0, 500) : null;
+
         // Référence unique
         $ref = 'VTE-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
         $this->db->beginTransaction();
         try {
             // Insérer la vente
-            $this->db->prepare("INSERT INTO ventes (reference, total_ht, remise, total_net, montant_recu, monnaie_rendue, utilisateur_id)
-                VALUES (:ref,:ht,:remise,:net,:recu,:monnaie,:uid)")
+            $this->db->prepare("INSERT INTO ventes (reference, total_ht, remise, total_net, montant_recu, monnaie_rendue, note, utilisateur_id)
+                VALUES (:ref,:ht,:remise,:net,:recu,:monnaie,:note,:uid)")
                 ->execute([':ref'=>$ref,':ht'=>$totalHT,':remise'=>$remise,':net'=>$totalNet,
-                        ':recu'=>$montantRecu,':monnaie'=>$monnaie,':uid'=>$_SESSION['user_id']]);
+                        ':recu'=>$montantRecu,':monnaie'=>$monnaie,':note'=>$note,':uid'=>$_SESSION['user_id']]);
             $venteId = $this->db->lastInsertId();
 
             // Insérer les lignes et mettre à jour le stock
@@ -51,7 +55,7 @@ class Vente {
             }
 
             $this->db->commit();
-            return ['vente_id'=>$venteId, 'reference'=>$ref, 'total_net'=>$totalNet, 'monnaie'=>$monnaie];
+            return ['vente_id'=>$venteId, 'reference'=>$ref, 'total_net'=>$totalNet, 'monnaie'=>$monnaie, 'note'=>$note];
         } catch (Exception $e) {
             $this->db->rollBack();
             return "Erreur lors de l'enregistrement : " . $e->getMessage();
@@ -106,10 +110,17 @@ class Vente {
     }
 
     public function getStatsMois(): array {
-        return $this->db->query("SELECT * FROM v_ventes_jour ORDER BY jour DESC LIMIT 30")->fetchAll();
+        $stmt = $this->db->prepare("SELECT * FROM v_ventes_jour ORDER BY jour DESC LIMIT 30");
+        $stmt->execute();
+        return $stmt->fetchAll();
     }
 
     public function getTopProduits(int $limit = 10): array {
-        return $this->db->query("SELECT * FROM v_top_produits LIMIT $limit")->fetchAll();
+        // prepare() obligatoire — PDO n'accepte pas :limit dans LIMIT
+        // On valide et caste en int pour éviter toute injection
+        $limit = max(1, min((int)$limit, 100));
+        $stmt  = $this->db->prepare("SELECT * FROM v_top_produits LIMIT " . $limit);
+        $stmt->execute();
+        return $stmt->fetchAll();
     }
 }

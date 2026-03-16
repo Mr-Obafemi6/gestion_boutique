@@ -15,6 +15,7 @@ $success   = '';
 
 // ── Créer un utilisateur ─────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    verifierCSRF();
 
     if ($_POST['action'] === 'creer') {
         $result = $userModel->create([
@@ -135,6 +136,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <td class="text-center">
                             <!-- Toggle statut -->
                             <form method="POST" class="d-inline">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                                 <input type="hidden" name="action"  value="toggle">
                                 <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                 <button class="btn btn-sm btn-<?= $u['statut'] === 'actif' ? 'warning' : 'success' ?>"
@@ -156,6 +158,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="modal fade" id="modalReset<?= $u['id'] ?>" tabindex="-1">
                         <div class="modal-dialog modal-sm">
                             <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                                 <div class="modal-header">
                                     <h5 class="modal-title">Réinitialiser le mot de passe</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -190,6 +193,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="modal fade" id="modalCreer" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content" novalidate>
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header" style="background:var(--bleu); color:#fff;">
                 <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Nouvel utilisateur</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>

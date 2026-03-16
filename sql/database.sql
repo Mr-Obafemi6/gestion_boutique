@@ -314,3 +314,11 @@ INSERT INTO permissions (role, module, action, autorise) VALUES
 ('magasinier','messagerie','voir',1),('magasinier','messagerie','creer',1),('magasinier','messagerie','modifier',0),('magasinier','messagerie','supprimer',1),('magasinier','messagerie','exporter',0),
 ('magasinier','utilisateurs','voir',0),('magasinier','utilisateurs','creer',0),('magasinier','utilisateurs','modifier',0),('magasinier','utilisateurs','supprimer',0),('magasinier','utilisateurs','exporter',0)
 ON DUPLICATE KEY UPDATE autorise = VALUES(autorise);
+
+-- ============================================================
+-- MIGRATION : Ajout de la note sur les ventes
+-- Exécuter dans phpMyAdmin si la colonne n'existe pas encore
+-- ============================================================
+ALTER TABLE ventes
+    ADD COLUMN IF NOT EXISTS note VARCHAR(500) NULL DEFAULT NULL
+    AFTER monnaie_rendue;

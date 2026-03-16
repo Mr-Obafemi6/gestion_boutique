@@ -8,6 +8,7 @@
 
     // ── Actions POST ─────────────────────────────────────────────
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierCSRF();
         $action = $_POST['action'] ?? '';
 
         if ($action === 'envoyer') {
@@ -135,6 +136,7 @@
                     </button>
                     <?php endif; ?>
                     <form method="POST" onsubmit="return confirm('Supprimer ce message ?')">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                         <input type="hidden" name="action" value="supprimer">
                         <input type="hidden" name="msg_id" value="<?= $msg['id'] ?>">
                         <input type="hidden" name="onglet" value="<?= $onglet ?>">
@@ -223,6 +225,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                     <input type="hidden" name="action" value="envoyer">
                     <div class="modal-body">
                         <!-- Destinataire -->

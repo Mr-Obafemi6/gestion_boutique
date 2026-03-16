@@ -21,9 +21,16 @@ require_once __DIR__ . '/../../includes/header.php';
         </a>
         <h2 class="fw-bold mb-0" style="color:#153F6E;">Détail vente <code><?= clean($vente['reference']) ?></code></h2>
     </div>
-    <button class="btn btn-primary" onclick="window.print()">
-        <i class="bi bi-printer me-2"></i>Imprimer ticket
-    </button>
+    <div class="d-flex gap-2">
+        <a href="<?= APP_URL ?>/modules/pdf/ticket.php?id=<?= $vente['id'] ?>"
+           target="_blank" class="btn btn-outline-secondary">
+            <i class="bi bi-receipt me-2"></i>Ticket PDF
+        </a>
+        <a href="<?= APP_URL ?>/modules/pdf/facture.php?id=<?= $vente['id'] ?>"
+           target="_blank" class="btn btn-primary">
+            <i class="bi bi-file-earmark-pdf-fill me-2"></i>Facture PDF
+        </a>
+    </div>
 </div>
 
 <div class="row g-3">
@@ -44,6 +51,18 @@ require_once __DIR__ . '/../../includes/header.php';
                     <tr><td class="fw-bold">TOTAL NET</td><td class="fw-bold text-success fs-5"><?= formatMontant($vente['total_net']) ?></td></tr>
                     <tr><td class="text-muted fw-semibold">Montant reçu</td><td><?= formatMontant($vente['montant_recu']) ?></td></tr>
                     <tr><td class="text-muted fw-semibold">Monnaie</td><td><?= formatMontant($vente['monnaie_rendue']) ?></td></tr>
+                    <?php if (!empty($vente['note'])): ?>
+                    <tr>
+                        <td class="text-muted fw-semibold" style="vertical-align:top;">Note</td>
+                        <td>
+                            <div style="background:#f8fafc;border-left:3px solid #e2e8f0;
+                                        padding:.4rem .75rem;border-radius:0 6px 6px 0;
+                                        font-size:.88rem;color:#374151;font-style:italic;">
+                                <?= clean($vente['note']) ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 </table>
             </div>
         </div>

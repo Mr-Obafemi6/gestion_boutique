@@ -16,15 +16,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $panier = json_decode($_POST['panier'] ?? '[]', true);
     $remise = (float)($_POST['remise'] ?? 0);
     $recu   = (float)($_POST['montant_recu'] ?? 0);
+    $note   = trim(strip_tags($_POST['note'] ?? ''));
 
     if (empty($panier)) { echo json_encode(['success'=>false,'message'=>'Le panier est vide.']); exit; }
     $total = array_sum(array_map(fn($l)=>$l['quantite']*$l['prix_unitaire'], $panier)) - $remise;
     if ($recu < $total) { echo json_encode(['success'=>false,'message'=>'Montant reçu insuffisant.']); exit; }
 
-    $result = $venteModel->enregistrer($panier, $remise, $recu);
+    $result = $venteModel->enregistrer($panier, $remise, $recu, $note);
     if (is_array($result)) {
         echo json_encode(['success'=>true,'vente_id'=>$result['vente_id'],'reference'=>$result['reference'],
-                            'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie']]);
+                          'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
+                          'note'=>$result['note'] ?? '']);
     } else {
         echo json_encode(['success'=>false,'message'=>$result]);
     }
@@ -687,9 +689,10 @@ require_once __DIR__ . '/../../includes/header.php';
     margin-top: 0.5rem;
 }
 .remise-input {
-    width: 80px;
-    border-radius: var(--radius-sm);
+    width: 70px;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
     border: 1px solid var(--gray-300);
+    border-right: none;
     padding: 4px 8px;
     font-size: .85rem;
     text-align: right;
@@ -699,6 +702,30 @@ require_once __DIR__ . '/../../includes/header.php';
 .remise-input:focus { 
     outline: none; 
     border-color: var(--warning);
+}
+/* Bouton toggle F/% */
+.remise-toggle {
+    border: 1px solid var(--gray-300);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: #f8fafc;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #64748b;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    min-width: 32px;
+    text-align: center;
+}
+.remise-toggle:hover { background: #e2e8f0; color: #1e293b; }
+.remise-toggle.pct   { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+/* Ligne remise calculée */
+.remise-calculee {
+    font-size: .78rem;
+    color: #ea580c;
+    font-weight: 600;
+    text-align: right;
 }
 .paiement-label { 
     font-size: .8rem; 
@@ -904,7 +931,17 @@ require_once __DIR__ . '/../../includes/header.php';
             <!-- Remise -->
             <div class="total-line">
                 <span><i class="bi bi-percent me-1"></i>Remise</span>
-                <input type="number" id="remise" class="remise-input" min="0" value="0" oninput="calculerTotal()">
+                <div style="display:flex;align-items:center;">
+                    <input type="number" id="remise" class="remise-input"
+                           min="0" value="0" step="any" oninput="calculerTotal()">
+                    <button type="button" id="remiseToggle" class="remise-toggle"
+                            onclick="toggleRemise()" title="Basculer FCFA / Pourcentage">F</button>
+                </div>
+            </div>
+            <!-- Montant remise calculé (visible en mode %) -->
+            <div class="total-line" id="ligneMontantRemise" style="display:none;">
+                <span style="color:#ea580c;font-size:.78rem;">− Remise calculée</span>
+                <span class="remise-calculee" id="montantRemiseCalc">0 F</span>
             </div>
             <!-- Sous-total -->
             <div class="total-line">
@@ -930,6 +967,22 @@ require_once __DIR__ . '/../../includes/header.php';
                 Monnaie : <span id="monnaieRendue">0 F</span>
             </div>
 
+            <!-- Note / commentaire -->
+            <div class="mt-3">
+                <div class="paiement-label">
+                    <i class="bi bi-chat-left-text me-1" style="color:#64748b;"></i>
+                    Note (optionnel)
+                </div>
+                <textarea id="noteVente" rows="2"
+                    placeholder="Client fidèle, livraison, remarque..."
+                    style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;
+                           font-size:.8rem;color:#374151;resize:none;line-height:1.4;
+                           background:#fafafa;transition:border-color .2s;"
+                    onfocus="this.style.borderColor='var(--bleu)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.background='#fafafa'"
+                    maxlength="500"></textarea>
+            </div>
+
             <!-- Bouton valider -->
             <button class="btn-valider" id="btnValider" onclick="if(typeof validerVente === 'function') validerVente()">
                 <i class="bi bi-check-circle-fill me-2"></i>Valider la vente
@@ -950,6 +1003,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 <button class="btn btn-outline-secondary btn-sm" onclick="if(typeof imprimerTicket === 'function') imprimerTicket()">
                     <i class="bi bi-printer me-1"></i>Imprimer
                 </button>
+                <a id="btnTicketPdf" href="#" target="_blank" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF
+                </a>
                 <button class="btn btn-success fw-semibold" onclick="if(typeof nouvelleVente === 'function') nouvelleVente()">
                     <i class="bi bi-plus-circle me-1"></i>Nouvelle vente
                 </button>
@@ -1070,22 +1126,67 @@ function changerQte(idx, delta) {
 function supprimerItem(idx) { panier.splice(idx, 1); renderPanier(); }
 function viderPanier()       { panier = []; renderPanier(); }
 
+// ── Remise : mode F ou % ─────────────────────────────────────
+let remiseEnPct = false; // false = FCFA, true = %
+
+function toggleRemise() {
+    remiseEnPct = !remiseEnPct;
+    const btn   = document.getElementById('remiseToggle');
+    const input = document.getElementById('remise');
+    if (remiseEnPct) {
+        btn.textContent = '%';
+        btn.classList.add('pct');
+        input.max  = 100;
+        input.step = '0.1';
+        input.placeholder = '0';
+    } else {
+        btn.textContent = 'F';
+        btn.classList.remove('pct');
+        input.removeAttribute('max');
+        input.step = 'any';
+        input.placeholder = '0';
+    }
+    input.value = 0;
+    document.getElementById('ligneMontantRemise').style.display = 'none';
+    calculerTotal();
+}
+
+function getMontantRemise(sousTotal) {
+    const val = parseFloat(document.getElementById('remise').value) || 0;
+    if (remiseEnPct) {
+        const pct = Math.min(100, Math.max(0, val));
+        return Math.round(sousTotal * pct / 100);
+    }
+    return Math.max(0, val);
+}
+
 function calculerTotal() {
-    const sousTotal = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
-    const remise    = parseFloat(document.getElementById('remise').value) || 0;
-    const total     = Math.max(0, sousTotal - remise);
+    const sousTotal     = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise = getMontantRemise(sousTotal);
+    const total         = Math.max(0, sousTotal - montantRemise);
+
     document.getElementById('sousTotal').textContent = fmt(sousTotal);
     document.getElementById('totalNet').textContent  = fmt(total);
+
+    // Afficher le montant remise calculé uniquement en mode %
+    const ligneMontant = document.getElementById('ligneMontantRemise');
+    if (remiseEnPct && montantRemise > 0) {
+        ligneMontant.style.display = 'flex';
+        document.getElementById('montantRemiseCalc').textContent = '− ' + fmt(montantRemise);
+    } else {
+        ligneMontant.style.display = 'none';
+    }
+
     calculerMonnaie();
 }
 
 function calculerMonnaie() {
-    const remise  = parseFloat(document.getElementById('remise').value) || 0;
-    const sousT   = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
-    const total   = Math.max(0, sousT - remise);
-    const recu    = parseFloat(document.getElementById('montantRecu').value) || 0;
-    const monnaie = recu - total;
-    const box     = document.getElementById('monnaieBox');
+    const sousT         = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise = getMontantRemise(sousT);
+    const total         = Math.max(0, sousT - montantRemise);
+    const recu          = parseFloat(document.getElementById('montantRecu').value) || 0;
+    const monnaie       = recu - total;
+    const box           = document.getElementById('monnaieBox');
 
     if (recu > 0 && panier.length > 0 && total > 0) {
         box.style.display = 'block';
@@ -1100,9 +1201,12 @@ function calculerMonnaie() {
 
 function validerVente() {
     if (panier.length === 0) { alert('Le panier est vide !'); return; }
-    const remise = parseFloat(document.getElementById('remise').value) || 0;
-    const recu   = parseFloat(document.getElementById('montantRecu').value) || 0;
-    const total  = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0) - remise;
+
+    const sousTotal     = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise = getMontantRemise(sousTotal);
+    const total         = Math.max(0, sousTotal - montantRemise);
+    const recu          = parseFloat(document.getElementById('montantRecu').value) || 0;
+
     if (recu < total) { alert('Montant reçu insuffisant !'); return; }
 
     const btn = document.getElementById('btnValider');
@@ -1110,15 +1214,16 @@ function validerVente() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Traitement...';
 
     const fd = new FormData();
-    fd.append('panier', JSON.stringify(panier));
-    fd.append('remise', remise);
+    fd.append('panier',       JSON.stringify(panier));
+    fd.append('remise',       montantRemise); // toujours envoyer le montant FCFA
     fd.append('montant_recu', recu);
+    fd.append('note',         (document.getElementById('noteVente')?.value ?? '').trim());
 
     fetch(window.location.href, { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                afficherTicket(data);
+                afficherTicket(data, montantRemise);
             } else {
                 alert('Erreur : ' + data.message);
                 btn.disabled = false;
@@ -1127,7 +1232,7 @@ function validerVente() {
         });
 }
 
-function afficherTicket(data) {
+function afficherTicket(data, montantRemise) {
     const lignes = panier.map(i =>
         `<div style="display:flex;justify-content:space-between;">
             <span>${i.nom} x${i.quantite}</span>
@@ -1135,8 +1240,20 @@ function afficherTicket(data) {
         </div>`
     ).join('');
 
-    const recu = parseFloat(document.getElementById('montantRecu').value) || 0;
+    const recu         = parseFloat(document.getElementById('montantRecu').value) || 0;
     const ligneMonnaie = `<div style="display:flex;justify-content:space-between;"><span>Monnaie</span><strong>${fmt(data.monnaie)}</strong></div>`;
+
+    // Ligne remise sur le ticket (n'afficher que si remise > 0)
+    let ligneRemise = '';
+    if (montantRemise > 0) {
+        const valRemise  = parseFloat(document.getElementById('remise').value) || 0;
+        const labelRemise = remiseEnPct
+            ? `Remise (${valRemise}%)`
+            : 'Remise';
+        ligneRemise = `<div style="display:flex;justify-content:space-between;color:#ea580c;">
+            <span>${labelRemise}</span><span>− ${fmt(montantRemise)}</span>
+        </div>`;
+    }
 
     document.getElementById('ticketContent').innerHTML = `
         <div style="text-align:center;border-bottom:1px dashed #ccc;padding-bottom:.6rem;margin-bottom:.6rem;">
@@ -1145,13 +1262,20 @@ function afficherTicket(data) {
             <small>Ticket : ${data.reference}</small>
         </div>
         <div style="border-bottom:1px dashed #ccc;padding-bottom:.6rem;margin-bottom:.6rem;">${lignes}</div>
+        ${ligneRemise}
         <div style="display:flex;justify-content:space-between;"><span>Total net</span><strong>${fmt(data.total_net)}</strong></div>
         <div style="display:flex;justify-content:space-between;"><span>Reçu</span><span>${fmt(recu)}</span></div>
         ${ligneMonnaie}
         <div style="text-align:center;margin-top:.8rem;border-top:1px dashed #ccc;padding-top:.5rem;font-size:.75rem;">
+            ${data.note ? `<div style="text-align:left;margin-bottom:.4rem;padding:.4rem .6rem;background:#f8fafc;border-radius:4px;font-style:italic;color:#475569;">
+                <small style="font-weight:700;font-style:normal;">Note :</small> ${data.note}
+            </div>` : ''}
             Merci pour votre achat !
         </div>`;
     new bootstrap.Modal(document.getElementById('modalTicket')).show();
+    // Mettre à jour le lien PDF
+    const btnPdf = document.getElementById('btnTicketPdf');
+    if (btnPdf) btnPdf.href = '<?= APP_URL ?>/modules/pdf/ticket.php?id=' + data.vente_id;
 }
 
 function imprimerTicket() {
@@ -1166,10 +1290,16 @@ function nouvelleVente() {
     viderPanier();
     document.getElementById('remise').value      = 0;
     document.getElementById('montantRecu').value = '';
-    document.getElementById('monnaieBox').style.display = 'none';
-    const btn = document.getElementById('btnValider');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Valider la vente';
+    document.getElementById('monnaieBox').style.display         = 'none';
+    document.getElementById('ligneMontantRemise').style.display = 'none';
+    const noteEl = document.getElementById('noteVente');
+    if (noteEl) noteEl.value = '';
+    // Réinitialiser le mode remise à FCFA
+    remiseEnPct = false;
+    const btn = document.getElementById('remiseToggle');
+    if (btn) { btn.textContent = 'F'; btn.classList.remove('pct'); }
+    document.getElementById('btnValider').disabled  = false;
+    document.getElementById('btnValider').innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Valider la vente';
     location.reload();
 }
 
