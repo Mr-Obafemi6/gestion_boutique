@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/Vente.php';
 require_once __DIR__ . '/../../includes/Produit.php';
 requireLogin();
-if (!peutFaire('ventes','creer')) redirect(APP_URL . '/includes/acces_refuse.php');
+if (!peutFaire('ventes','creer','')) redirect(APP_URL . '/includes/acces_refuse.php');
 
 $venteModel   = new Vente();
 $produitModel = new Produit();
@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $venteModel->enregistrer($panier, $remise, $recu, $note);
     if (is_array($result)) {
         echo json_encode(['success'=>true,'vente_id'=>$result['vente_id'],'reference'=>$result['reference'],
-                          'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
-                          'note'=>$result['note'] ?? '']);
+                                'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
+                                    'note'=>$result['note'] ?? '']);
     } else {
         echo json_encode(['success'=>false,'message'=>$result]);
     }
@@ -469,8 +469,7 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 @keyframes product-added {
     0% { transform: scale(1); }
-    30% { transform: scale(1.15) rotate(3deg); box-shadow: 0 0 30px rgba(5, 150, 105, 0.6); }
-    60% { transform: scale(0.95) rotate(-2deg); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(31, 92, 153, 0.3); }
     100% { transform: scale(1); }
 }
 .prod-card.zero-stock {
@@ -492,7 +491,7 @@ require_once __DIR__ . '/../../includes/header.php';
     margin-bottom: 0.75rem;
     border: 1px solid var(--gray-200);
 }
-.prod-card .stock-badge.low { 
+.prod-card .stock-badge.low {
     background: linear-gradient(135deg, #fef2f2, #fee2e2);
     color: var(--danger);
     border-color: #fecaca;
