@@ -62,6 +62,20 @@ class Produit {
         return 'PROD-' . str_pad($num, 3, '0', STR_PAD_LEFT);
     }
 
+    // ── Helper upload image ───────────────────────────────────
+    private function uploadImage(?array $file, int $produitId = 0): ?string {
+        if (empty($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
+        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg','jpeg','png','gif','webp'];
+        if (!in_array($ext, $allowed)) return null;
+        if ($file['size'] > 2 * 1024 * 1024) return null; // max 2Mo
+        $dir     = __DIR__ . '/../uploads/produits/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $nom     = 'prod_' . ($produitId ?: time()) . '_' . rand(100,999) . '.' . $ext;
+        move_uploaded_file($file['tmp_name'], $dir . $nom);
+        return $nom;
+    }
+
     public function create(array $d): bool|string {
         if (empty($d['nom']) || empty($d['categorie_id'])) return "Champs obligatoires manquants.";
         if ((float)$d['prix_vente'] <= 0) return "Le prix de vente doit être supérieur à 0.";
@@ -75,7 +89,6 @@ class Produit {
         $stmt = $this->db->prepare("SELECT id FROM produits WHERE reference = :ref");
         $stmt->execute([':ref' => $reference]);
         if ($stmt->fetch()) {
-            // Si conflit sur une ref auto, en regénérer une avec timestamp
             if (empty(trim($d['reference'] ?? ''))) {
                 $reference = 'PROD-' . date('ymd') . '-' . rand(10, 99);
             } else {
@@ -94,6 +107,16 @@ class Produit {
                 ':pa'    => (float)$d['prix_achat'],  ':pv'    => (float)$d['prix_vente'],
                 ':stock' => (int)($d['stock_initial'] ?? 0), ':seuil' => (int)($d['seuil_alerte'] ?? 5),
             ]);
+        $newId = (int)$this->db->lastInsertId();
+
+        // Upload image si fournie
+        if (!empty($d['_image'])) {
+            $img = $this->uploadImage($d['_image'], $newId);
+            if ($img) {
+                $this->db->prepare("UPDATE produits SET image=:img WHERE id=:id")
+                    ->execute([':img'=>$img, ':id'=>$newId]);
+            }
+        }
         return true;
     }
 
@@ -112,6 +135,20 @@ class Produit {
                 ':pa'=>(float)$d['prix_achat'], ':pv'=>(float)$d['prix_vente'],
                 ':seuil'=>(int)$d['seuil_alerte'], ':id'=>$id,
             ]);
+
+        // Upload nouvelle image si fournie
+        if (!empty($d['_image']) && $d['_image']['error'] === UPLOAD_ERR_OK) {
+            $img = $this->uploadImage($d['_image'], $id);
+            if ($img) {
+                // Supprimer l'ancienne
+                $ancien = $this->db->prepare("SELECT image FROM produits WHERE id=:id");
+                $ancien->execute([':id'=>$id]);
+                $ancienImg = $ancien->fetchColumn();
+                if ($ancienImg) @unlink(__DIR__ . '/../uploads/produits/' . $ancienImg);
+                $this->db->prepare("UPDATE produits SET image=:img WHERE id=:id")
+                    ->execute([':img'=>$img, ':id'=>$id]);
+            }
+        }
         return true;
     }
 

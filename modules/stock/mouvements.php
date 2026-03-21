@@ -32,6 +32,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $search      = clean($_GET['q'] ?? '');
 $typeFilter  = clean($_GET['type'] ?? '');
 $mouvements  = $stockModel->getMouvements($search, $typeFilter);
+
+// ── Export CSV ──────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    if (!peutFaire('stock','exporter')) redirect(APP_URL . '/includes/acces_refuse.php');
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="mouvements_stock_' . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+    fputcsv($out, ['Date','Référence','Produit','Type','Quantité','Prix unitaire','Montant','Motif','Fournisseur','Utilisateur'], ';');
+    foreach ($mouvements as $m) {
+        $montant = $m['quantite'] * $m['prix_unitaire'];
+        fputcsv($out, [
+            date('d/m/Y H:i', strtotime($m['created_at'])),
+            $m['reference'], $m['produit_nom'],
+            ucfirst($m['type_mvt']),
+            $m['quantite'],
+            $m['prix_unitaire'],
+            number_format($montant, 2, ',', ' '),
+            $m['motif'] ?? '',
+            $m['fournisseur_nom'] ?? '',
+            $m['user_prenom'].' '.$m['user_nom'],
+        ], ';');
+    }
+    fclose($out); exit;
+}
 $critique    = $stockModel->getStockCritique();
 $produits    = $produitModel->getAll();
 $fournisseurs= $stockModel->getFournisseurs();
@@ -46,6 +71,12 @@ require_once __DIR__ . '/../../includes/header.php';
         <small class="text-muted"><?= count($mouvements) ?> mouvement(s) affiché(s)</small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        <?php if(peutFaire('stock','exporter')): ?>
+        <a href="?q=<?= urlencode($search) ?>&type=<?= urlencode($typeFilter) ?>&export=csv"
+           class="btn btn-outline-success btn-sm fw-semibold">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
+        </a>
+        <?php endif; ?>
         <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalFournisseur"><i class="bi bi-truck me-1"></i>Fournisseur</button>
         <button class="btn btn-success fw-semibold" data-bs-toggle="modal" data-bs-target="#modalEntree"><i class="bi bi-box-arrow-in-down me-2"></i>Entrée stock</button>
         <button class="btn btn-warning fw-semibold text-dark" data-bs-toggle="modal" data-bs-target="#modalSortie"><i class="bi bi-box-arrow-up me-2"></i>Sortie stock</button>

@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/Vente.php';
 require_once __DIR__ . '/../../includes/Produit.php';
 requireLogin();
-if (!peutFaire('ventes','creer','')) redirect(APP_URL . '/includes/acces_refuse.php');
+if (!peutFaire('ventes','creer')) redirect(APP_URL . '/includes/acces_refuse.php');
 
 $venteModel   = new Vente();
 $produitModel = new Produit();
@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $venteModel->enregistrer($panier, $remise, $recu, $note);
     if (is_array($result)) {
         echo json_encode(['success'=>true,'vente_id'=>$result['vente_id'],'reference'=>$result['reference'],
-                                'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
-                                    'note'=>$result['note'] ?? '']);
+                          'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
+                          'note'=>$result['note'] ?? '']);
     } else {
         echo json_encode(['success'=>false,'message'=>$result]);
     }
@@ -40,197 +40,6 @@ $pageTitle = "Point de vente";
 error_log("Nombre de produits chargés: " . count($produits));
 
 // ── Couleurs par catégorie ───────────────────────────────────
-function getCategorieStyle(string $categorie): array {
-    $cat = strtolower($categorie);
-    $styles = [
-        // Alimentation / épicerie
-        'epicerie'    => ['#FFF7ED','#EA580C'],
-        'alimentation'=> ['#FFF7ED','#EA580C'],
-        'alimentaire' => ['#FFF7ED','#EA580C'],
-        // Fruits & légumes
-        'fruits'      => ['#F0FDF4','#16A34A'],
-        'legumes'     => ['#F0FDF4','#16A34A'],
-        'légumes'     => ['#F0FDF4','#16A34A'],
-        'fruits et legumes' => ['#F0FDF4','#16A34A'],
-        // Boissons
-        'boissons'    => ['#EFF6FF','#2563EB'],
-        'boisson'     => ['#EFF6FF','#2563EB'],
-        // Hygiène / beauté
-        'hygiene'     => ['#FDF4FF','#9333EA'],
-        'hygiène'     => ['#FDF4FF','#9333EA'],
-        'beaute'       => ['#FDF4FF','#9333EA'],
-        'beauté'      => ['#FDF4FF','#9333EA'],
-        // Electronique
-        'electronique'=> ['#F0F9FF','#0284C7'],
-        'électronique'=> ['#F0F9FF','#0284C7'],
-        'telephones'  => ['#F0F9FF','#0284C7'],
-        'téléphones'  => ['#F0F9FF','#0284C7'],
-        // Vêtements / textile
-        'vetements'   => ['#FFF1F2','#E11D48'],
-        'vêtements'   => ['#FFF1F2','#E11D48'],
-        'textile'     => ['#FFF1F2','#E11D48'],
-        'habillement' => ['#FFF1F2','#E11D48'],
-        // Céréales / farines
-        'cereales'    => ['#FFFBEB','#D97706'],
-        'céréales'    => ['#FFFBEB','#D97706'],
-        'farines'     => ['#FFFBEB','#D97706'],
-        // Viandes / poissons
-        'viandes'     => ['#FEF2F2','#DC2626'],
-        'poissons'    => ['#F0FDFA','#0D9488'],
-        // Médicaments / santé
-        'medicaments' => ['#F0FDF4','#15803D'],
-        'médicaments' => ['#F0FDF4','#15803D'],
-        'sante'       => ['#F0FDF4','#15803D'],
-        'santé'       => ['#F0FDF4','#15803D'],
-        // Quincaillerie / bricolage
-        'quincaillerie'=> ['#F8FAFC','#475569'],
-        'bricolage'   => ['#F8FAFC','#475569'],
-    ];
-    foreach ($styles as $mot => $style) {
-        if (str_contains($cat, $mot)) return $style;
-    }
-    // Couleur par défaut basée sur l'ID de catégorie pour varier
-    $defaults = [
-        ['#EEF2FF','#4F46E5'],
-        ['#FFF7ED','#EA580C'],
-        ['#F0FDF4','#16A34A'],
-        ['#FDF4FF','#9333EA'],
-        ['#FFFBEB','#D97706'],
-        ['#F0F9FF','#0284C7'],
-    ];
-    return $defaults[abs(crc32($categorie)) % count($defaults)];
-}
-
-// ── Fonction emoji automatique selon le nom du produit ───────
-function getProduitEmoji(string $nom, int $cat = 0): string {
-    $nom = strtolower($nom);
-
-    $map = [
-        // Fruits & légumes
-        'tomate'      => '🍅', 'tomates'     => '🍅',
-        'oignon'      => '🧅', 'oignons'     => '🧅',
-        'ail'         => '🧄',
-        'carotte'     => '🥕', 'carottes'    => '🥕',
-        'pomme'       => '🍎', 'pommes'      => '🍎',
-        'orange'      => '🍊', 'oranges'     => '🍊',
-        'banane'      => '🍌', 'bananes'     => '🍌',
-        'mangue'      => '🥭', 'mangues'     => '🥭',
-        'ananas'      => '🍍',
-        'citron'      => '🍋', 'citrons'     => '🍋',
-        'avocat'      => '🥑', 'avocats'     => '🥑',
-        'piment'      => '🌶️', 'piments'    => '🌶️',
-        'poivron'     => '🫑',
-        'gombo'       => '🥬',
-        'igname'      => '🍠',
-        'manioc'      => '🌿',
-        'mais'        => '🌽', 'maïs'        => '🌽',
-        'haricot'     => '🫘',
-        'arachide'    => '🥜', 'arachides'   => '🥜',
-        'noix'        => '🥜',
-
-        // Céréales & féculents
-        'riz'         => '🌾',
-        'mil'         => '🌾', 'millet'      => '🌾',
-        'sorgho'      => '🌾',
-        'farine'      => '🌾',
-        'pain'        => '🍞',
-        'pate'        => '🍝', 'pâte'        => '🍝',
-        'couscous'    => '🍚',
-
-        // Boissons
-        'eau'         => '💧',
-        'lait'        => '🥛',
-        'jus'         => '🧃',
-        'coca'        => '🥤', 'cola'        => '🥤',
-        'biere'       => '🍺', 'bière'       => '🍺',
-        'vin'         => '🍷',
-        'cafe'        => '☕', 'café'        => '☕',
-        'the'         => '🍵', 'thé'         => '🍵',
-        'boisson'     => '🥤', 'boissons'    => '🥤',
-        'limonade'    => '🥤',
-        'sirop'       => '🧴',
-
-        // Huiles & condiments
-        'huile'       => '🫙',
-        'sel'         => '🧂',
-        'sucre'       => '🍬',
-        'miel'        => '🍯',
-        'vinaigre'    => '🫙',
-        'sauce'       => '🥫',
-        'tomate concentree' => '🥫',
-        'mayonnaise'  => '🫙',
-        'moutarde'    => '🫙',
-
-        // Viandes & poissons
-        'poulet'      => '🍗',
-        'viande'      => '🥩',
-        'boeuf'       => '🥩',
-        'mouton'      => '🐑',
-        'porc'        => '🐷',
-        'poisson'     => '🐟', 'poissons'    => '🐟',
-        'thon'        => '🐟',
-        'sardine'     => '🐟',
-        'crevette'    => '🦐', 'crevettes'   => '🦐',
-        'oeuf'        => '🥚', 'oeufs'       => '🥚',
-        'fromage'     => '🧀',
-
-        // Produits d'hygiène & ménage
-        'savon'       => '🧼', 'savons'      => '🧼',
-        'shampooing'  => '🧴', 'shampoing'   => '🧴',
-        'dentifrice'  => '🪥',
-        'brosse'      => '🪥',
-        'lessive'     => '🧺',
-        'javel'       => '🧹',
-        'detergent'   => '🧹',
-        'desinfectant'=> '🧴',
-        'papier'      => '📄',
-        'essuie'      => '🧻',
-        'serviette'   => '🧻',
-        'couche'      => '👶',
-
-        // Electronique & autre
-        'telephone'   => '📱', 'téléphone'   => '📱',
-        'chargeur'    => '🔌',
-        'batterie'    => '🔋',
-        'cable'       => '🔌',
-        'lampe'       => '💡',
-        'pile'        => '🔋',
-        'ampoule'     => '💡',
-
-        // Vêtements & textile
-        'tissu'       => '🧵',
-        'vetement'    => '👕', 'vêtement'    => '👕',
-        'chemise'     => '👕',
-        'pantalon'    => '👖',
-        'chaussure'   => '👟', 'chaussures'  => '👟',
-
-        // Divers
-        'medicament'  => '💊', 'médicament'  => '💊',
-        'comprime'    => '💊',
-        'sirop medicament' => '💊',
-        'masque'      => '😷',
-        'gant'        => '🧤',
-        'sac'         => '👜',
-        'bougie'      => '🕯️',
-        'allumette'   => '🔥',
-        'briquet'     => '🔥',
-        'carburant'   => '⛽',
-        'ciment'      => '🏗️',
-        'fer'         => '⚙️',
-        'clou'        => '🔨',
-    ];
-
-    // Cherche une correspondance dans le nom du produit
-    foreach ($map as $mot => $emoji) {
-        if (str_contains($nom, $mot)) {
-            return $emoji;
-        }
-    }
-
-    // Emoji par défaut selon la premiere lettre (pour varier)
-    $defaults = ['📦','🛍️','🏪','🛒','🎁','📫'];
-    return $defaults[abs(crc32($nom)) % count($defaults)];
-}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -469,7 +278,8 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 @keyframes product-added {
     0% { transform: scale(1); }
-    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(31, 92, 153, 0.3); }
+    30% { transform: scale(1.15) rotate(3deg); box-shadow: 0 0 30px rgba(5, 150, 105, 0.6); }
+    60% { transform: scale(0.95) rotate(-2deg); }
     100% { transform: scale(1); }
 }
 .prod-card.zero-stock {
@@ -491,7 +301,7 @@ require_once __DIR__ . '/../../includes/header.php';
     margin-bottom: 0.75rem;
     border: 1px solid var(--gray-200);
 }
-.prod-card .stock-badge.low {
+.prod-card .stock-badge.low { 
     background: linear-gradient(135deg, #fef2f2, #fee2e2);
     color: var(--danger);
     border-color: #fecaca;
@@ -872,9 +682,17 @@ require_once __DIR__ . '/../../includes/header.php';
                  style="border-color:<?= $textColor ?>22;">
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
+                    <?php if (!empty($p['image'])): ?>
+                    <div class="prod-icon-wrap" style="background:<?= $bgColor ?>; overflow:hidden; padding:0;">
+                        <img src="<?= APP_URL ?>/uploads/produits/<?= htmlspecialchars($p['image']) ?>"
+                             alt="<?= clean($p['nom']) ?>"
+                             style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
+                    </div>
+                    <?php else: ?>
                     <span class="prod-icon-wrap" style="background:<?= $bgColor ?>; color:<?= $textColor ?>;">
                         <?= getProduitEmoji($p['nom']) ?>
                     </span>
+                    <?php endif; ?>
                     <span class="stock-badge <?= $stockFaible ? 'low' : '' ?>">
                         <?= $p['stock_actuel'] ?> en stock
                     </span>

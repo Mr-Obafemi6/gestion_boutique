@@ -270,6 +270,47 @@
         document.getElementById('selectDest').value = destId;
         document.getElementById('inputSujet').value  = sujet;
     }
+
+    // ── Rafraîchissement automatique du badge messages ───────
+    // Toutes les 30 secondes, vérifie le nb de messages non lus
+    (function autoRefreshMessages() {
+        const badge = document.querySelector('.badge.rounded-pill[style*="ef4444"]') ||
+                      document.querySelector('#msgBadge');
+
+        function checkMessages() {
+            fetch('<?= APP_URL ?>/modules/messagerie/index.php', {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.text())
+            .then(html => {
+                // Extraire le nb de messages non lus depuis le HTML retourné
+                const parser   = new DOMParser();
+                const doc      = parser.parseFromString(html, 'text/html');
+                const newBadge = doc.querySelector('.badge.rounded-pill[style*="ef4444"]');
+                const oldBadge = document.querySelector('.badge.rounded-pill[style*="ef4444"]');
+
+                if (newBadge && oldBadge) {
+                    if (newBadge.textContent !== oldBadge.textContent) {
+                        // Nouveau message — rechargement complet pour afficher
+                        window.location.reload();
+                    }
+                } else if (newBadge && !oldBadge) {
+                    // Nouveau message non lu apparu
+                    window.location.reload();
+                }
+            })
+            .catch(() => {}); // silencieux si erreur réseau
+        }
+
+        // Vérifier toutes les 30 secondes
+        setInterval(checkMessages, 30000);
+    })();
+
+    // ── Notification browser si onglet non actif ──────────────
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
     </script>
 
     <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

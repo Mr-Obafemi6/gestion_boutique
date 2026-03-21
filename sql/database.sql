@@ -322,3 +322,24 @@ ON DUPLICATE KEY UPDATE autorise = VALUES(autorise);
 ALTER TABLE ventes
     ADD COLUMN IF NOT EXISTS note VARCHAR(500) NULL DEFAULT NULL
     AFTER monnaie_rendue;
+
+-- ============================================================
+-- MIGRATION : Ajout image produit
+-- ============================================================
+ALTER TABLE produits
+    ADD COLUMN IF NOT EXISTS image VARCHAR(255) NULL DEFAULT NULL
+    AFTER code_barre;
+
+-- ============================================================
+-- MIGRATION : Historique des connexions utilisateurs
+-- ============================================================
+CREATE TABLE IF NOT EXISTS connexions_log (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    utilisateur_id INT UNSIGNED NOT NULL,
+    ip             VARCHAR(45)  NOT NULL DEFAULT '',
+    user_agent     VARCHAR(255) DEFAULT NULL,
+    statut         ENUM('succes','echec') NOT NULL DEFAULT 'succes',
+    created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_uid  (utilisateur_id),
+    INDEX idx_date (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

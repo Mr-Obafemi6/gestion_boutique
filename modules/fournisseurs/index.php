@@ -127,6 +127,23 @@ if (!peutFaire('fournisseurs','voir')) redirect(APP_URL . '/includes/acces_refus
         }
     }
 
+    // ── Export CSV fournisseurs ──────────────────────────────
+    if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+        if (!peutFaire('fournisseurs','exporter')) redirect(APP_URL . '/includes/acces_refuse.php');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="fournisseurs_' . date('Y-m-d') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+        fputcsv($out, ['Nom','Telephone','Email','Adresse','Date ajout'], ';');
+        foreach ($fournisseurs as $f) {
+            fputcsv($out, [
+                $f['nom'], $f['telephone'] ?? '', $f['email'] ?? '',
+                $f['adresse'] ?? '', date('d/m/Y', strtotime($f['created_at'])),
+            ], ';');
+        }
+        fclose($out); exit;
+    }
+
     $pageTitle = "Fournisseurs";
     require_once __DIR__ . '/../../includes/header.php';
     ?>
@@ -181,9 +198,17 @@ if (!peutFaire('fournisseurs','voir')) redirect(APP_URL . '/includes/acces_refus
             </h2>
             <small class="text-muted"><?= count($fournisseurs) ?> fournisseur(s)</small>
         </div>
-        <button class="btn btn-primary fw-semibold px-4" data-bs-toggle="modal" data-bs-target="#modalCreer">
-            <i class="bi bi-plus-lg me-2"></i>Nouveau fournisseur
-        </button>
+        <div class="d-flex gap-2">
+            <?php if(peutFaire('fournisseurs','exporter')): ?>
+            <a href="?q=<?= urlencode($search) ?>&export=csv"
+               class="btn btn-outline-success fw-semibold px-3">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
+            </a>
+            <?php endif; ?>
+            <button class="btn btn-primary fw-semibold px-4" data-bs-toggle="modal" data-bs-target="#modalCreer">
+                <i class="bi bi-plus-lg me-2"></i>Nouveau fournisseur
+            </button>
+        </div>
     </div>
 
     <!-- Barre de recherche -->

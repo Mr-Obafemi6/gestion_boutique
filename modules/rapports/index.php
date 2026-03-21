@@ -83,6 +83,30 @@ $stmtStock = $db->prepare("SELECT SUM(stock_actuel * prix_achat) FROM produits W
 $stmtStock->execute();
 $valeurStock = (float)$stmtStock->fetchColumn();
 
+// ── Objectif CA ───────────────────────────────────────────────
+// Lire/sauvegarder l'objectif depuis la table parametres
+function getRapportParam(PDO $db, string $cle, string $defaut = ''): string {
+    $s = $db->prepare("SELECT valeur FROM parametres WHERE cle=:cle");
+    $s->execute([':cle'=>$cle]);
+    $r = $s->fetchColumn();
+    return $r !== false ? $r : $defaut;
+}
+function setRapportParam(PDO $db, string $cle, string $val): void {
+    $db->prepare("INSERT INTO parametres (cle,valeur) VALUES(:k,:v) ON DUPLICATE KEY UPDATE valeur=:v2")
+       ->execute([':k'=>$cle,':v'=>$val,':v2'=>$val]);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['objectif_ca'])) {
+    verifierCSRF();
+    $objVal = max(0, (int)str_replace([' ', '.', ','], '', $_POST['objectif_ca']));
+    setRapportParam($db, 'objectif_ca_mois', (string)$objVal);
+    setFlash('success', 'Objectif CA mis à jour.');
+    redirect(APP_URL . '/modules/rapports/index.php?dd='.$dateDebut.'&df='.$dateFin);
+}
+
+$objectifCA  = (float)getRapportParam($db, 'objectif_ca_mois', '0');
+$progressCA  = $objectifCA > 0 ? min(100, round($stats['ca_total'] / $objectifCA * 100, 1)) : 0;
+
 try {
     $stmtRupture = $db->prepare("SELECT COUNT(*) FROM v_stock_critique");
     $stmtRupture->execute();
@@ -213,6 +237,52 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="col-auto"><a href="?dd=<?= date('Y-m-01') ?>&df=<?= date('Y-m-d') ?>" class="btn btn-outline-secondary">Ce mois</a></div>
     <div class="col-auto"><a href="?dd=<?= date('Y-01-01') ?>&df=<?= date('Y-m-d') ?>" class="btn btn-outline-secondary">Cette année</a></div>
 </form>
+
+<!-- ── Objectif CA mensuel ──────────────────────────────────── -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+            <div style="flex:1;min-width:220px;">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-semibold" style="font-size:.88rem;">
+                        <i class="bi bi-bullseye me-1" style="color:#6f42c1;"></i>
+                        Objectif CA mensuel
+                    </span>
+                    <span class="fw-bold" style="font-size:.88rem;color:<?= $progressCA >= 100 ? '#198754' : ($progressCA >= 70 ? '#fd7e14' : '#dc3545') ?>;">
+                        <?= $progressCA ?>%
+                    </span>
+                </div>
+                <div class="progress" style="height:10px;border-radius:6px;background:#e9ecef;">
+                    <div class="progress-bar"
+                         style="width:<?= $progressCA ?>%;border-radius:6px;
+                                background:<?= $progressCA >= 100 ? '#198754' : ($progressCA >= 70 ? '#fd7e14' : '#6f42c1') ?>;
+                                transition:width .6s ease;">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-1" style="font-size:.75rem;color:#64748b;">
+                    <span><?= formatMontant($stats['ca_total']) ?> réalisé</span>
+                    <span>/ <?= $objectifCA > 0 ? formatMontant($objectifCA) : 'Non défini' ?></span>
+                </div>
+            </div>
+            <?php if(peutFaire('rapports','modifier') || $_SESSION['user_role']==='administrateur'): ?>
+            <form method="POST" class="d-flex gap-2 align-items-end" style="flex-shrink:0;">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+                <input type="hidden" name="dd" value="<?= $dateDebut ?>">
+                <input type="hidden" name="df" value="<?= $dateFin ?>">
+                <div>
+                    <label class="form-label fw-semibold mb-1" style="font-size:.78rem;">Définir l'objectif (FCFA)</label>
+                    <input type="number" name="objectif_ca" class="form-control form-control-sm"
+                           value="<?= $objectifCA > 0 ? (int)$objectifCA : '' ?>"
+                           placeholder="Ex: 500000" min="0" style="width:160px;">
+                </div>
+                <button type="submit" class="btn btn-sm btn-outline-primary fw-semibold">
+                    <i class="bi bi-check2 me-1"></i>Définir
+                </button>
+            </form>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
 <!-- ── KPIs ─────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">

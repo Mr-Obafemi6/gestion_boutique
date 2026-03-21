@@ -16,11 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'creer') {
         if (!peutFaire('produits','creer')) { setFlash('error','Action non autorisée.'); }
-        else { $result = $produitModel->create($_POST); setFlash($result === true ? 'success' : 'error', $result === true ? 'Produit ajouté avec succès.' : $result); }
+        else { $_POST['_image'] = $_FILES['image'] ?? null; $result = $produitModel->create($_POST); setFlash($result === true ? 'success' : 'error', $result === true ? 'Produit ajouté avec succès.' : $result); }
     }
     if ($action === 'modifier') {
         if (!peutFaire('produits','modifier')) { setFlash('error','Action non autorisée.'); }
-        else { $result = $produitModel->update((int)$_POST['id'], $_POST); setFlash($result === true ? 'success' : 'error', $result === true ? 'Produit mis à jour.' : $result); }
+        else { $_POST['_image'] = $_FILES['image'] ?? null; $result = $produitModel->update((int)$_POST['id'], $_POST); setFlash($result === true ? 'success' : 'error', $result === true ? 'Produit mis à jour.' : $result); }
     }
     if ($action === 'supprimer') {
         if (!peutFaire('produits','supprimer')) { setFlash('error','Action non autorisée.'); }
@@ -176,10 +176,24 @@ require_once __DIR__ . '/../../includes/header.php';
                 <tr class="<?= $critique ? 'table-danger' : '' ?>">
                     <td class="ps-3"><code><?= clean($p['reference']) ?></code></td>
                     <td>
-                        <div class="fw-semibold"><?= clean($p['nom']) ?></div>
-                        <?php if ($p['description']): ?>
-                            <small class="text-muted"><?= clean(substr($p['description'], 0, 50)) ?>...</small>
-                        <?php endif; ?>
+                        <div class="d-flex align-items-center gap-3">
+                            <?php if (!empty($p['image'])): ?>
+                            <img src="<?= APP_URL ?>/uploads/produits/<?= htmlspecialchars($p['image']) ?>"
+                                    alt="<?= clean($p['nom']) ?>"
+                                    style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;">
+                            <?php else: ?>
+                            <div style="width:44px;height:44px;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0;
+                                        display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">
+                                <?= getProduitEmoji($p['nom']) ?>
+                            </div>
+                            <?php endif; ?>
+                            <div>
+                                <div class="fw-semibold"><?= clean($p['nom']) ?></div>
+                                <?php if ($p['description']): ?>
+                                    <small class="text-muted"><?= clean(substr($p['description'], 0, 50)) ?>...</small>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </td>
                     <td><span class="badge bg-secondary"><?= clean($p['categorie_nom']) ?></span></td>
                     <td class="text-end"><?= formatMontant($p['prix_achat']) ?></td>
@@ -203,7 +217,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             data-unite="<?= clean($p['unite_mesure']) ?>"
                             data-pa="<?= $p['prix_achat'] ?>"
                             data-pv="<?= $p['prix_vente'] ?>"
-                            data-seuil="<?= $p['seuil_alerte'] ?>">
+                            data-seuil="<?= $p['seuil_alerte'] ?>"
+                            data-image="<?= !empty($p['image']) ? htmlspecialchars($p['image']) : '' ?>">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
                         <?php endif; ?>
@@ -306,7 +321,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- Modal : Créer produit -->
 <div class="modal fade" id="modalCreer" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <form method="POST" class="modal-content">
+        <form method="POST" class="modal-content" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header" style="background:var(--bleu);color:#fff;">
                 <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouveau produit</h5>
@@ -373,6 +388,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <label class="form-label fw-semibold">Description</label>
                         <textarea name="description" class="form-control" rows="2" placeholder="Description optionnelle..."></textarea>
                     </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Image produit <span class="text-muted fw-normal">(optionnel — JPG/PNG, max 2Mo)</span></label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -388,7 +407,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- Modal : Modifier produit -->
 <div class="modal fade" id="modalModifier" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <form method="POST" class="modal-content">
+        <form method="POST" class="modal-content" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <div class="modal-header" style="background:#153F6E;color:#fff;">
                 <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le produit</h5>
@@ -420,6 +439,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-4"><label class="form-label fw-semibold">Prix vente *</label><input type="number" name="prix_vente" id="edit_pv" class="form-control" required min="1" step="1"></div>
                     <div class="col-md-4"><label class="form-label fw-semibold">Seuil alerte</label><input type="number" name="seuil_alerte" id="edit_seuil" class="form-control" min="0"></div>
                     <div class="col-12"><label class="form-label fw-semibold">Description</label><textarea name="description" id="edit_desc" class="form-control" rows="2"></textarea></div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Image produit <span class="text-muted fw-normal">(laisser vide pour conserver)</span></label>
+                        <div id="edit_img_preview" class="mb-2" style="display:none;">
+                            <img id="edit_img_thumb" src="" alt="Image actuelle"
+                                 style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:2px solid #e2e8f0;">
+                            <small class="text-muted ms-2">Image actuelle</small>
+                        </div>
+                        <input type="hidden" name="image_actuelle" id="edit_img_actuelle">
+                        <input type="file" name="image" id="edit_img_file" class="form-control" accept="image/*">
+                        <small class="text-muted">Formats : JPG, PNG, WebP — Max 2Mo</small>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -464,6 +494,22 @@ document.getElementById('modalModifier').addEventListener('show.bs.modal', funct
     document.getElementById('edit_pa').value    = btn.dataset.pa;
     document.getElementById('edit_pv').value    = btn.dataset.pv;
     document.getElementById('edit_seuil').value = btn.dataset.seuil;
+
+    // Aperçu image actuelle
+    const img      = btn.dataset.image || '';
+    const preview  = document.getElementById('edit_img_preview');
+    const thumb    = document.getElementById('edit_img_thumb');
+    const actuelle = document.getElementById('edit_img_actuelle');
+    actuelle.value = img;
+    if (img) {
+        thumb.src = '<?= APP_URL ?>/uploads/produits/' + img;
+        preview.style.display = 'flex';
+        preview.style.alignItems = 'center';
+    } else {
+        preview.style.display = 'none';
+    }
+    // Réinitialiser le champ file
+    document.getElementById('edit_img_file').value = '';
 });
 </script>
 

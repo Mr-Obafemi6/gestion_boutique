@@ -132,6 +132,18 @@ $ca7j = $stmtCa7->fetchAll();
 $labels  = array_column($ca7j, 'jour');
 $valeurs = array_column($ca7j, 'ca');
 
+// ── Top 5 produits vendus aujourd'hui ────────────────────────
+$stmtTop = $db->prepare("
+    SELECT p.nom, SUM(lv.quantite) AS qte, SUM(lv.sous_total) AS ca
+    FROM lignes_vente lv
+    JOIN produits p ON lv.produit_id = p.id
+    JOIN ventes v   ON lv.vente_id   = v.id
+    WHERE v.statut = 'validee' AND DATE(v.created_at) = :today
+    GROUP BY p.id ORDER BY qte DESC LIMIT 5
+");
+$stmtTop->execute([':today' => $today]);
+$topJour = $stmtTop->fetchAll();
+
 $pageTitle = "Tableau de bord";
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -299,6 +311,60 @@ require_once __DIR__ . '/includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ── Top produits du jour ─────────────────────────────── -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="card-header-icon" style="background:#fef3c7;">
+            <i class="bi bi-trophy-fill" style="color:#d97706;"></i>
+        </div>
+        Top produits — aujourd'hui
+        <small class="ms-auto text-muted" style="font-size:.75rem;"><?= date('d/m/Y') ?></small>
+    </div>
+    <div class="card-body p-0">
+    <?php if (empty($topJour)): ?>
+        <div class="empty-state py-3">
+            <i class="bi bi-bar-chart text-muted"></i>
+            <p>Aucune vente enregistrée aujourd'hui</p>
+        </div>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Produit</th>
+                        <th class="text-center">Qté vendue</th>
+                        <th class="text-end pe-3">CA généré</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($topJour as $i => $tp): ?>
+                <tr>
+                    <td class="ps-3">
+                        <?php if ($i === 0): ?>
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                        <?php elseif ($i === 1): ?>
+                            <i class="bi bi-trophy-fill text-secondary"></i>
+                        <?php elseif ($i === 2): ?>
+                            <i class="bi bi-trophy-fill text-danger"></i>
+                        <?php else: ?>
+                            <span class="text-muted"><?= $i+1 ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="fw-semibold"><?= clean($tp['nom']) ?></td>
+                    <td class="text-center">
+                        <span class="badge bg-primary rounded-pill"><?= $tp['qte'] ?></span>
+                    </td>
+                    <td class="text-end pe-3 fw-bold text-success"><?= formatMontant($tp['ca']) ?></td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
     </div>
 </div>
 

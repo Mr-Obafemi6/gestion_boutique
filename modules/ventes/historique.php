@@ -17,9 +17,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['annuler_id'])) {
     redirect(APP_URL . '/modules/ventes/historique.php');
 }
 
-$dateDebut = clean($_GET['dd'] ?? date('Y-m-01'));
-$dateFin   = clean($_GET['df'] ?? date('Y-m-d'));
-$ventes    = $venteModel->getHistorique($dateDebut, $dateFin);
+$dateDebut  = clean($_GET['dd']      ?? date('Y-m-01'));
+$dateFin    = clean($_GET['df']      ?? date('Y-m-d'));
+$caissierFilter = (int)($_GET['uid'] ?? 0);
+$ventes     = $venteModel->getHistorique($dateDebut, $dateFin, $caissierFilter);
+
+// Liste des caissiers pour le filtre
+$db = getDB();
+$stmtCaissiers = $db->prepare("
+    SELECT DISTINCT u.id, u.nom, u.prenom
+    FROM ventes v JOIN utilisateurs u ON v.utilisateur_id = u.id
+    ORDER BY u.nom, u.prenom
+");
+$stmtCaissiers->execute();
+$caissiers = $stmtCaissiers->fetchAll();
 
 // Total de la période
 $totalPeriode = array_sum(array_column($ventes, 'total_net'));
@@ -35,7 +46,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
     <div class="d-flex gap-2">
         <?php if(peutFaire('ventes','voir')): ?>
-        <a href="<?= APP_URL ?>/modules/pdf/historique.php?dd=<?= $dateDebut ?>&df=<?= $dateFin ?>"
+        <a href="<?= APP_URL ?>/modules/pdf/historique.php?dd=<?= $dateDebut ?>&df=<?= $dateFin ?>&uid=<?= $caissierFilter ?>"
            target="_blank" class="btn btn-outline-danger btn-sm fw-semibold">
             <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exporter PDF
         </a>
@@ -43,7 +54,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Filtres date -->
+<!-- Filtres date + caissier -->
 <form method="GET" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
         <label class="form-label fw-semibold mb-1">Date début</label>
@@ -52,6 +63,17 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="col-md-3">
         <label class="form-label fw-semibold mb-1">Date fin</label>
         <input type="date" name="df" class="form-control" value="<?= $dateFin ?>">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label fw-semibold mb-1">Caissier</label>
+        <select name="uid" class="form-select">
+            <option value="0">Tous</option>
+            <?php foreach ($caissiers as $c): ?>
+            <option value="<?= $c['id'] ?>" <?= $caissierFilter == $c['id'] ? 'selected' : '' ?>>
+                <?= clean($c['prenom'].' '.$c['nom']) ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
     </div>
     <div class="col-md-2">
         <button type="submit" class="btn btn-primary w-100">Filtrer</button>
