@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $venteModel->enregistrer($panier, $remise, $recu, $note);
     if (is_array($result)) {
         echo json_encode(['success'=>true,'vente_id'=>$result['vente_id'],'reference'=>$result['reference'],
-                          'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
-                          'note'=>$result['note'] ?? '']);
+                            'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
+                            'note'=>$result['note'] ?? '']);
     } else {
         echo json_encode(['success'=>false,'message'=>$result]);
     }

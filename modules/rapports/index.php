@@ -107,6 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['objectif_ca'])) {
 $objectifCA  = (float)getRapportParam($db, 'objectif_ca_mois', '0');
 $progressCA  = $objectifCA > 0 ? min(100, round($stats['ca_total'] / $objectifCA * 100, 1)) : 0;
 
+$progressCAClass = $progressCA >= 100 ? 'text-success' : ($progressCA >= 70 ? 'text-warning' : 'text-danger');
+$progressBarClass = $progressCA >= 100 ? 'bg-success' : ($progressCA >= 70 ? 'bg-warning' : 'bg-primary');
+$progressWidth = $progressCA . '%';
+
 try {
     $stmtRupture = $db->prepare("SELECT COUNT(*) FROM v_stock_critique");
     $stmtRupture->execute();
@@ -147,12 +151,12 @@ $stmtMargeProd = $db->prepare("
         CASE WHEN SUM(lv.sous_total) > 0
              THEN ROUND(SUM(lv.quantite * (lv.prix_unitaire - p.prix_achat))
                         / SUM(lv.sous_total) * 100, 1)
-             ELSE 0 END                                     AS taux_marge
+                ELSE 0 END                                     AS taux_marge
     FROM lignes_vente lv
     JOIN produits p ON lv.produit_id = p.id
     JOIN ventes v   ON lv.vente_id   = v.id
     WHERE v.statut = 'validee'
-      AND DATE(v.created_at) BETWEEN :dd AND :df
+        AND DATE(v.created_at) BETWEEN :dd AND :df
     GROUP BY p.id
     ORDER BY marge DESC
     LIMIT 10
@@ -180,7 +184,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         SELECT v.*, u.nom, u.prenom,
                COALESCE(SUM(lv.quantite * p.prix_achat), 0) AS cout_achat,
                COALESCE(SUM(lv.quantite * (lv.prix_unitaire - p.prix_achat)), 0) AS marge_brute,
-               CASE WHEN SUM(lv.sous_total) > 0
+                CASE WHEN SUM(lv.sous_total) > 0
                     THEN ROUND(SUM(lv.quantite*(lv.prix_unitaire-p.prix_achat))/SUM(lv.sous_total)*100,1)
                     ELSE 0 END AS taux_marge
         FROM ventes v
@@ -221,7 +225,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
         </a>
         <a href="<?= APP_URL ?>/modules/pdf/rapports.php?dd=<?= $dateDebut ?>&df=<?= $dateFin ?>"
-           target="_blank" class="btn btn-danger fw-semibold">
+            target="_blank" class="btn btn-danger fw-semibold">
             <i class="bi bi-file-earmark-pdf-fill me-2"></i>PDF
         </a>
     </div>
@@ -248,15 +252,12 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="bi bi-bullseye me-1" style="color:#6f42c1;"></i>
                         Objectif CA mensuel
                     </span>
-                    <span class="fw-bold" style="font-size:.88rem;color:<?= $progressCA >= 100 ? '#198754' : ($progressCA >= 70 ? '#fd7e14' : '#dc3545') ?>;">
+                    <span class="fw-bold <?= $progressCAClass ?>" style="font-size:.88rem;">
                         <?= $progressCA ?>%
                     </span>
                 </div>
                 <div class="progress" style="height:10px;border-radius:6px;background:#e9ecef;">
-                    <div class="progress-bar"
-                         style="width:<?= $progressCA ?>%;border-radius:6px;
-                                background:<?= $progressCA >= 100 ? '#198754' : ($progressCA >= 70 ? '#fd7e14' : '#6f42c1') ?>;
-                                transition:width .6s ease;">
+                    <div class="progress-bar <?= $progressBarClass ?>" role="progressbar" aria-valuenow="<?= $progressCA ?>" aria-valuemin="0" aria-valuemax="100" data-width="<?= $progressWidth ?>" style="border-radius:6px; transition:width .6s ease;">
                     </div>
                 </div>
                 <div class="d-flex justify-content-between mt-1" style="font-size:.75rem;color:#64748b;">
@@ -272,8 +273,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div>
                     <label class="form-label fw-semibold mb-1" style="font-size:.78rem;">Définir l'objectif (FCFA)</label>
                     <input type="number" name="objectif_ca" class="form-control form-control-sm"
-                           value="<?= $objectifCA > 0 ? (int)$objectifCA : '' ?>"
-                           placeholder="Ex: 500000" min="0" style="width:160px;">
+                            value="<?= $objectifCA > 0 ? (int)$objectifCA : '' ?>"
+                            placeholder="Ex: 500000" min="0" style="width:160px;">
                 </div>
                 <button type="submit" class="btn btn-sm btn-outline-primary fw-semibold">
                     <i class="bi bi-check2 me-1"></i>Définir
@@ -526,6 +527,14 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
+// Applique la largeur du bar de progression en JS pour éviter du CSS invalide dans l'analyseur de style
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(el) {
+        const w = el.getAttribute('data-width');
+        if (w) el.style.width = w;
+    });
+});
+
 const BLUE = '<?= $_SESSION["theme_couleur"] !== null ? ($_SESSION["theme_couleur"] === "vert" ? "#16a34a" : ($_SESSION["theme_couleur"] === "violet" ? "#7c3aed" : ($_SESSION["theme_couleur"] === "orange" ? "#ea580c" : ($_SESSION["theme_couleur"] === "rouge" ? "#dc2626" : "#1F5C99")))) : "#1F5C99" ?>';
 
 // Graphique CA par jour

@@ -183,21 +183,21 @@ hr{border-color:#334155!important;}
 </style>
 
 <div class="param-container">
-<ul class="nav nav-tabs param-tabs" id="paramTabs" role="tablist">
-<li class="nav-item" role="presentation">
-<a href="?s=profil" class="nav-link <?=$section==='profil'?'active':''?>"><i class="bi bi-person-circle me-2"></i>Mon profil</a>
-</li>
-<li class="nav-item" role="presentation">
-<a href="?s=boutique" class="nav-link <?=$section==='boutique'?'active':''?>"><i class="bi bi-shop me-2"></i>Boutique</a>
-</li>
-<li class="nav-item" role="presentation">
-<a href="?s=securite" class="nav-link <?=$section==='securite'?'active':''?>"><i class="bi bi-shield-lock me-2"></i>Sécurité</a>
-</li>
-<?php if($_SESSION['user_role']==='administrateur'): ?>
-<li class="nav-item" role="presentation">
-<a href="?s=permissions" class="nav-link <?=$section==='permissions'?'active':''?>"><i class="bi bi-toggles me-2"></i>Permissions</a>
-</li>
-<?php endif; ?>
+    <ul class="nav nav-tabs param-tabs" id="paramTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a href="?s=profil" class="nav-link <?=$section==='profil'?'active':''?>"><i class="bi bi-person-circle me-2"></i>Mon profil</a>
+            </li>
+            <li class="nav-item" role="presentation">
+            <a href="?s=boutique" class="nav-link <?=$section==='boutique'?'active':''?>"><i class="bi bi-shop me-2"></i>Boutique</a>
+            </li>
+            <li class="nav-item" role="presentation">
+            <a href="?s=securite" class="nav-link <?=$section==='securite'?'active':''?>"><i class="bi bi-shield-lock me-2"></i>Sécurité</a>
+            </li>
+            <?php if($_SESSION['user_role']==='administrateur'): ?>
+            <li class="nav-item" role="presentation">
+            <a href="?s=permissions" class="nav-link <?=$section==='permissions'?'active':''?>"><i class="bi bi-toggles me-2"></i>Permissions</a>
+        </li>
+    <?php endif; ?>
 </ul>
 
 <div class="tab-content param-tab-content" id="paramTabsContent">

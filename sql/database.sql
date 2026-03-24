@@ -1,8 +1,5 @@
 -- ============================================================
 --  BASE DE DONNÉES : Gestion de Stock et Caisse - Boutique
---  Auteur  : [Ton Nom]
---  Date    : 2025
---  SGBD    : MySQL 8.x
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS gestion_boutique

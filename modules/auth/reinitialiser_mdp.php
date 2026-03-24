@@ -28,9 +28,9 @@ if ($token && $email) {
         FROM password_resets pr
         JOIN utilisateurs u ON u.email COLLATE utf8mb4_general_ci = pr.email COLLATE utf8mb4_general_ci
         WHERE pr.email COLLATE utf8mb4_general_ci  = :email
-          AND pr.token  = :token
-          AND pr.expires_at > NOW()
-          AND u.statut  = 'actif'
+            AND pr.token  = :token
+            AND pr.expires_at > NOW()
+            AND u.statut  = 'actif'
         LIMIT 1
     ");
     $stmt->execute([':email' => $email, ':token' => $token]);
@@ -60,9 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValide) {
             $db   = getDB();
             $hash = password_hash($nouveau, PASSWORD_BCRYPT, ['cost' => 12]);
             $db->prepare("UPDATE utilisateurs SET mot_de_passe = :h WHERE id = :id")
-               ->execute([':h' => $hash, ':id' => $userReset['user_id']]);
+                ->execute([':h' => $hash, ':id' => $userReset['user_id']]);
             $db->prepare("DELETE FROM password_resets WHERE email = :e")
-               ->execute([':e' => $email]);
+                ->execute([':e' => $email]);
 
             $success     = "Mot de passe réinitialisé ! Vous pouvez maintenant vous connecter.";
             $tokenValide = false;

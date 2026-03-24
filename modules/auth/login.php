@@ -5,7 +5,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/User.php';
 
-// Si déjà connecté → dashboard  
+// Si déjà connecté → dashboard
 if (!empty($_SESSION['user_id'])) {
     redirect(APP_URL . '/dashboard.php');
 }

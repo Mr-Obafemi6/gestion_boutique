@@ -11,7 +11,7 @@ class Stock {
 
     public function getMouvements(string $search = '', string $type = ''): array {
         $sql = "SELECT ms.*, p.nom AS produit_nom, p.reference, u.nom AS user_nom, u.prenom AS user_prenom,
-                       f.nom AS fournisseur_nom
+                    f.nom AS fournisseur_nom
                 FROM mouvements_stock ms
                 JOIN produits p ON ms.produit_id = p.id
                 JOIN utilisateurs u ON ms.utilisateur_id = u.id

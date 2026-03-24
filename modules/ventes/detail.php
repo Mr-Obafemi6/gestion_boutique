@@ -23,11 +23,11 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
     <div class="d-flex gap-2">
         <a href="<?= APP_URL ?>/modules/pdf/ticket.php?id=<?= $vente['id'] ?>"
-           target="_blank" class="btn btn-outline-secondary">
+            target="_blank" class="btn btn-outline-secondary">
             <i class="bi bi-receipt me-2"></i>Ticket PDF
         </a>
         <a href="<?= APP_URL ?>/modules/pdf/facture.php?id=<?= $vente['id'] ?>"
-           target="_blank" class="btn btn-primary">
+            target="_blank" class="btn btn-primary">
             <i class="bi bi-file-earmark-pdf-fill me-2"></i>Facture PDF
         </a>
     </div>
