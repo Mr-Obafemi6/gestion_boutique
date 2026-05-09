@@ -163,40 +163,14 @@ require_once __DIR__ . '/../../includes/header.php';
                             <!-- Reset mdp -->
                             <button class="btn btn-sm btn-outline-secondary ms-1"
                                     data-bs-toggle="modal"
-                                    data-bs-target="#modalReset<?= $u['id'] ?>"
+                                    data-bs-target="#modalReset"
+                                    data-user-id="<?= $u['id'] ?>"
+                                    data-user-name="<?= clean($u['nom'] . ' ' . $u['prenom']) ?>"
                                     title="Réinitialiser mot de passe">
                                 <i class="bi bi-key-fill"></i>
                             </button>
                         </td>
                     </tr>
-
-                    <!-- Modal reset mdp -->
-                    <div class="modal fade" id="modalReset<?= $u['id'] ?>" tabindex="-1">
-                        <div class="modal-dialog modal-sm">
-                            <form method="POST" class="modal-content">
-    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Réinitialiser le mot de passe</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p class="text-muted mb-3">
-                                        Nouveau mot de passe pour <strong><?= clean($u['nom'] . ' ' . $u['prenom']) ?></strong>
-                                    </p>
-                                    <input type="hidden" name="action"   value="reset_password">
-                                    <input type="hidden" name="user_id"  value="<?= $u['id'] ?>">
-                                    <input type="password" name="new_password" class="form-control"
-                                        placeholder="Minimum 8 caractères" required minlength="8">
-                                </div>
-                                <div class="modal-footer">
-                                    <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
-                                    <button type="submit" class="btn btn-primary btn-sm">
-                                        <i class="bi bi-check2 me-1"></i>Valider
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
                 </tbody>
@@ -204,6 +178,56 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- ── Modal : Réinitialiser le mot de passe (réutilisable) ────── -->
+<div class="modal fade" id="modalReset" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <form method="POST" class="modal-content">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+            <div class="modal-header">
+                <h5 class="modal-title">Réinitialiser le mot de passe</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Nouveau mot de passe pour <strong id="resetUserName"></strong>
+                </p>
+                <input type="hidden" name="action"   value="reset_password">
+                <input type="hidden" name="user_id"  id="resetUserId" value="">
+                <input type="password" name="new_password" class="form-control"
+                    placeholder="Minimum 8 caractères" required minlength="8">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-check2 me-1"></i>Valider
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Script pour remplir dynamiquement la modal -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const resetModal = document.getElementById('modalReset');
+    if (resetModal) {
+        resetModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const userId = button.getAttribute('data-user-id');
+            const userName = button.getAttribute('data-user-name');
+            
+            // Remplir les champs de la modal
+            document.getElementById('resetUserId').value = userId;
+            document.getElementById('resetUserName').textContent = userName;
+            
+            // Réinitialiser le champ de mot de passe
+            const passwordInput = resetModal.querySelector('input[name="new_password"]');
+            if (passwordInput) passwordInput.value = '';
+        });
+    }
+});
+</script>
 
 <!-- ── Modal : Créer un utilisateur ──────────────────────── -->
 <div class="modal fade" id="modalCreer" tabindex="-1">

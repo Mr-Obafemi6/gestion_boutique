@@ -34,6 +34,8 @@
     const sidebar   = document.getElementById('sidebar');
     const overlay   = document.getElementById('sidebarOverlay');
     const toggleBtn = document.getElementById('toggleSidebar');
+    const collapseBtn = document.getElementById('collapseSidebar');
+    const closeBtn = document.getElementById('closeSidebar');
 
     function ouvrirSidebar() {
         sidebar.classList.add('open');
@@ -50,6 +52,19 @@
     if (toggleBtn) toggleBtn.addEventListener('click', () => {
         sidebar.classList.contains('open') ? fermerSidebar() : ouvrirSidebar();
     });
+
+    if (collapseBtn) {
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        });
+        // Restaurer l'état collapsed depuis le localStorage
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+    }
+    
+    if (closeBtn) closeBtn.addEventListener('click', fermerSidebar);
 
     if (overlay) overlay.addEventListener('click', fermerSidebar);
 

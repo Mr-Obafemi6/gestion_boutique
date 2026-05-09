@@ -140,12 +140,16 @@ if ($section === 'permissions') {
 }
 $pageTitle="Parametres";
 
+// Récupérer les variables de thème depuis la session (chargées par header.php)
+$modeSombre = ($_SESSION['theme_mode'] ?? 'clair') === 'sombre';
+$themeCouleurs = ['bleu'=>'#1F5C99','vert'=>'#16a34a','violet'=>'#7c3aed','orange'=>'#ea580c','rouge'=>'#dc2626'];
+$couleurActive = $themeCouleurs[$_SESSION['theme_couleur'] ?? 'bleu'] ?? '#1F5C99';
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <style>
-/* Variables récupérées depuis theme.php - pas de :root local */
-:root{--bleu-clair:<?=$tc[2]?>;}
+/* Couleur active depuis le thème */
+:root{--bleu-clair:<?=$couleurActive?>cc;}
 <?php if($modeSombre):?>
 body,.main-content{background:#0f172a!important;color:#e2e8f0!important;}
 .param-panel{background:#1e293b!important;border-color:#334155!important;}
@@ -160,6 +164,9 @@ hr{border-color:#334155!important;}
 .param-tabs .nav-link:hover{background:#e2e8f0;color:#1e293b;}
 .param-tabs .nav-link.active{background:#fff;color:var(--bleu);border-color:#e2e8f0 #e2e8f0 #fff;}
 .param-tab-content{background:#fff;border:1px solid #e2e8f0;border-radius:0 12px 12px 12px;padding:2rem;animation:fadeIn .5s ease;}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+.tab-pane.show { display: block; }
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .param-section{margin-bottom:2rem;}
 .param-section h6{font-size:1.1rem;font-weight:700;color:#1e293b;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}

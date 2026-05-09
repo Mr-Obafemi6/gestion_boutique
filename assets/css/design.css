@@ -261,6 +261,11 @@ body {
 .badge-role-caissier { background: #dbeafe; color: #1d4ed8; }
 .badge-role-magasinier { background: #dcfce7; color: #15803d; }
 
+.admin-icon {
+    color: #fbbf24 !important;
+    text-shadow: 0 0 1px rgba(0,0,0,.15);
+}
+
 /* ── Boutons améliorés ───────────────────────────────────── */
 .btn {
     font-weight: 500;

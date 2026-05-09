@@ -80,9 +80,9 @@ class Message {
         $stmt = $this->db->prepare("
             DELETE FROM messages 
             WHERE id = :id 
-            AND (expediteur_id = :uid OR destinataire_id = :uid)
+            AND (expediteur_id = :uid OR destinataire_id = :uid2)
         ");
-        return $stmt->execute([':id' => $id, ':uid' => $userId]);
+        return $stmt->execute([':id' => $id, ':uid' => $userId, ':uid2' => $userId]);
     }
 
     // Nombre de messages non lus
