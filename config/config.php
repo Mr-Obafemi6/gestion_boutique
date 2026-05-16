@@ -60,6 +60,13 @@ function formatMontant(float $montant): string {
 }
 
 /**
+ * Alias court pour formatMontant().
+ */
+function fmt(float $montant): string {
+    return formatMontant($montant);
+}
+
+/**
  * Vérifie si l'utilisateur est connecté, sinon redirige.
  */
 function requireLogin(): void {

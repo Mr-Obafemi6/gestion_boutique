@@ -3,39 +3,59 @@
 //  includes/Vente.php — Modèle Vente
 // ============================================================
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/Client.php';
 
 class Vente {
-    private PDO $db;
-
-    public function __construct() { $this->db = getDB(); }
+    private PDO    $db;
+    private Client $clientModel;
+    public function __construct() { $this->db = getDB(); $this->clientModel = new Client(); }
 
     /**
      * Enregistre une vente complète avec ses lignes.
      * $panier = [['produit_id'=>X, 'quantite'=>Y, 'prix_unitaire'=>Z], ...]
      */
-    public function enregistrer(array $panier, float $remise = 0, float $montantRecu = 0, string $note = ''): array|string {
+    public function enregistrer(
+        array  $panier,
+        float  $remise         = 0,
+        float  $montantRecu    = 0,
+        string $note           = '',
+        int    $clientId       = 0,
+        float  $montantCredit  = 0,
+        float  $remiseFidelite = 0
+    ): array|string {
         if (empty($panier)) return "Le panier est vide.";
 
-        // Calcul des totaux
-        $totalHT = 0;
+        $totalHT      = 0;
         foreach ($panier as $ligne) $totalHT += $ligne['quantite'] * $ligne['prix_unitaire'];
-        $totalNet = max(0, $totalHT - $remise);
-        $monnaie  = max(0, $montantRecu - $totalNet);
+        $remiseTotale = $remise + $remiseFidelite;
+        $totalNet     = max(0, $totalHT - $remiseTotale);
+        $monnaie      = max(0, ($montantRecu + $montantCredit) - $totalNet);
 
-        // Nettoyer la note
+        // Déterminer type_vente
+        $typeVente = 'detail';
+        foreach ($panier as $ligne) {
+            if (!empty($ligne['est_gros'])) { $typeVente = 'gros'; break; }
+        }
+
+        // Valider crédit client
+        if ($montantCredit > 0 && $clientId > 0) {
+            if (!$this->clientModel->peutAcheterCredit($clientId, $montantCredit)) {
+                return "Plafond de crédit dépassé pour ce client.";
+            }
+        }
+
         $note = trim($note);
         $note = $note !== '' ? mb_substr($note, 0, 500) : null;
-
-        // Référence unique
-        $ref = 'VTE-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        $ref  = 'VTE-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
         $this->db->beginTransaction();
         try {
-            // Insérer la vente
-            $this->db->prepare("INSERT INTO ventes (reference, total_ht, remise, total_net, montant_recu, monnaie_rendue, note, utilisateur_id)
-                VALUES (:ref,:ht,:remise,:net,:recu,:monnaie,:note,:uid)")
-                ->execute([':ref'=>$ref,':ht'=>$totalHT,':remise'=>$remise,':net'=>$totalNet,
-                        ':recu'=>$montantRecu,':monnaie'=>$monnaie,':note'=>$note,':uid'=>$_SESSION['user_id']]);
+            $this->db->prepare("INSERT INTO ventes
+                (reference, total_ht, remise, total_net, montant_recu, monnaie_rendue, note, utilisateur_id, client_id, type_vente)
+                VALUES (:ref,:ht,:remise,:net,:recu,:monnaie,:note,:uid,:cid,:type)")
+                ->execute([':ref'=>$ref,':ht'=>$totalHT,':remise'=>$remiseTotale,':net'=>$totalNet,
+                        ':recu'=>$montantRecu,':monnaie'=>$monnaie,':note'=>$note,':uid'=>$_SESSION['user_id'],
+                        ':cid'=>$clientId > 0 ? $clientId : null,':type'=>$typeVente]);
             $venteId = $this->db->lastInsertId();
 
             // Insérer les lignes et mettre à jour le stock
@@ -54,8 +74,24 @@ class Vente {
                     ->execute([':pid'=>$ligne['produit_id'],':qte'=>$ligne['quantite'],':pu'=>$ligne['prix_unitaire'],':motif'=>'Vente #'.$ref,':uid'=>$_SESSION['user_id']]);
             }
 
+            // Actions client après validation
+            if ($clientId > 0) {
+                $this->clientModel->ajouterPoints($clientId, $montantRecu);
+                if ($remiseFidelite > 0) $this->clientModel->consommerPoints($clientId, $remiseFidelite);
+                if ($montantCredit  > 0) $this->clientModel->ajouterCredit($clientId, $montantCredit);
+            }
+
             $this->db->commit();
-            return ['vente_id'=>$venteId, 'reference'=>$ref, 'total_net'=>$totalNet, 'monnaie'=>$monnaie, 'note'=>$note];
+            return [
+                'vente_id'       => $venteId,
+                'reference'      => $ref,
+                'total_net'      => $totalNet,
+                'monnaie'        => $monnaie,
+                'note'           => $note,
+                'type_vente'     => $typeVente,
+                'montant_credit' => $montantCredit,
+                'client_id'      => $clientId ?: null,
+            ];
         } catch (Exception $e) {
             $this->db->rollBack();
             return "Erreur lors de l'enregistrement : " . $e->getMessage();
@@ -75,9 +111,12 @@ class Vente {
     }
 
     public function getHistorique(string $dateDebut = '', string $dateFin = '', int $userId = 0): array {
-        $sql = "SELECT v.*, u.nom, u.prenom, COUNT(lv.id) AS nb_articles
+        $sql = "SELECT v.*, u.nom, u.prenom,
+                       c.nom AS client_nom,
+                       COUNT(lv.id) AS nb_articles
                 FROM ventes v
                 JOIN utilisateurs u ON v.utilisateur_id=u.id
+                LEFT JOIN clients c ON v.client_id=c.id
                 LEFT JOIN lignes_vente lv ON lv.vente_id=v.id
                 WHERE v.statut='validee'";
         $params = [];

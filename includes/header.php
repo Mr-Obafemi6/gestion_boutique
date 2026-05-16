@@ -732,9 +732,142 @@
                     .sidebar-collapse-btn { display: flex !important; }
                     .sidebar-close-btn { display: none !important; }
                 }
+
+                /* ── Page Loader ─────────────────────────────────────────── */
+                #page-loader {
+                    position: fixed;
+                    inset: 0;
+                    background: #f0f4f8;
+                    z-index: 9999;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 1.5rem;
+                    transition: opacity .35s ease, visibility .35s ease;
+                }
+                #page-loader.hidden {
+                    opacity: 0;
+                    visibility: hidden;
+                    pointer-events: none;
+                }
+                .loader-brand {
+                    display: flex;
+                    align-items: center;
+                    gap: .75rem;
+                    animation: loaderFadeIn .2s ease both;
+                }
+                .loader-brand-icon {
+                    width: 52px; height: 52px;
+                    background: var(--bleu-fonce);
+                    border-radius: 14px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1.6rem;
+                    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+                }
+                .loader-brand-name {
+                    font-size: 1.3rem;
+                    font-weight: 800;
+                    color: var(--bleu-fonce);
+                    letter-spacing: -.01em;
+                }
+                .loader-brand-sub {
+                    font-size: .72rem;
+                    color: #94a3b8;
+                    letter-spacing: .05em;
+                    text-transform: uppercase;
+                }
+                /* Barre de progression */
+                .loader-bar-wrap {
+                    width: 220px;
+                    animation: loaderFadeIn .2s ease both;
+                }
+                .loader-bar-track {
+                    height: 4px;
+                    background: #e2e8f0;
+                    border-radius: 10px;
+                    overflow: hidden;
+                }
+                .loader-bar-fill {
+                    height: 100%;
+                    border-radius: 10px;
+                    background: linear-gradient(90deg, var(--bleu), var(--bleu-fonce));
+                    width: 0%;
+                    animation: loaderBarAnim 0.5s ease forwards;
+                }
+                .loader-label {
+                    text-align: center;
+                    font-size: .73rem;
+                    color: #94a3b8;
+                    margin-top: .5rem;
+                    font-weight: 500;
+                }
+                /* Spinner dots */
+                .loader-dots {
+                    display: flex; gap: .45rem;
+                    animation: loaderFadeIn .2s ease both;
+                }
+                .loader-dot {
+                    width: 8px; height: 8px;
+                    border-radius: 50%;
+                    background: var(--bleu);
+                    opacity: .3;
+                    animation: loaderDot 0.7s infinite ease-in-out;
+                }
+                .loader-dot:nth-child(1) { animation-delay: 0s; }
+                .loader-dot:nth-child(2) { animation-delay: .18s; }
+                .loader-dot:nth-child(3) { animation-delay: .36s; }
+
+                @keyframes loaderFadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes loaderBarAnim {
+                    0%   { width: 0%; }
+                    30%  { width: 45%; }
+                    65%  { width: 72%; }
+                    85%  { width: 88%; }
+                    100% { width: 96%; }
+                }
+                @keyframes loaderDot {
+                    0%, 80%, 100% { opacity: .3; transform: scale(1); }
+                    40%           { opacity: 1;  transform: scale(1.3); }
+                }
             </style>
         </head>
         <body>
+
+        <!-- ════════════════════════════════════════════════
+             PAGE LOADER
+        ════════════════════════════════════════════════ -->
+        <div id="page-loader">
+            <!-- Logo / Brand -->
+            <div class="loader-brand">
+                <div class="loader-brand-icon">
+                    <i class="bi bi-shop-window" style="color:#fff;"></i>
+                </div>
+                <div>
+                    <div class="loader-brand-name"><?= APP_NAME ?></div>
+                    <div class="loader-brand-sub">Chargement en cours…</div>
+                </div>
+            </div>
+
+            <!-- Barre de progression -->
+            <div class="loader-bar-wrap">
+                <div class="loader-bar-track">
+                    <div class="loader-bar-fill" id="loaderBarFill"></div>
+                </div>
+                <div class="loader-label" id="loaderLabel">Initialisation…</div>
+            </div>
+
+            <!-- Points animés -->
+            <div class="loader-dots">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+            </div>
+        </div>
+
 
         <!-- ── Overlay mobile ───────────────────────────────────────── -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -793,6 +926,13 @@
                 <a href="<?= APP_URL ?>/modules/fournisseurs/index.php"
                 class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'fournisseurs') !== false ? 'active' : '' ?>">
                     <i class="bi bi-truck"></i> Fournisseurs
+                </a>
+                <?php endif; ?>
+
+                <?php if(peutFaire('clients','lire')): ?>
+                <a href="<?= APP_URL ?>/modules/clients/index.php"
+                class="nav-link <?= strpos($_SERVER['PHP_SELF'], '/clients/') !== false ? 'active' : '' ?>">
+                    <i class="bi bi-people-fill"></i> Clients
                 </a>
                 <?php endif; ?>
 

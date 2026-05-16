@@ -105,7 +105,9 @@ class Produit {
                 ':nom'   => clean($d['nom']),         ':desc'  => clean($d['description'] ?? ''),
                 ':cat'   => (int)$d['categorie_id'],  ':unite' => clean($d['unite_mesure'] ?? 'pièce'),
                 ':pa'    => (float)$d['prix_achat'],  ':pv'    => (float)$d['prix_vente'],
-                ':stock' => (int)($d['stock_initial'] ?? 0), ':seuil' => (int)($d['seuil_alerte'] ?? 5),
+                ':stock' => (int)($d['stock_initial'] ?? 0), ':pg'    => !empty($d['prix_gros']) ? (float)$d['prix_gros'] : null,
+            ':qmg'   => (int)($d['qte_min_gros'] ?? 0),
+            ':seuil' => (int)($d['seuil_alerte'] ?? 5),
             ]);
         $newId = (int)$this->db->lastInsertId();
 
@@ -176,6 +178,24 @@ class Produit {
     }
 
     public function getPourVente(): array {
-        return $this->db->query("SELECT p.id, p.nom, p.reference, p.prix_vente, p.stock_actuel, p.seuil_alerte, p.unite_mesure, p.categorie_id, c.nom AS categorie_nom FROM produits p LEFT JOIN categories c ON p.categorie_id = c.id WHERE p.statut='actif' AND p.stock_actuel > 0 ORDER BY p.nom")->fetchAll();
+        return $this->db->query("SELECT p.id, p.nom, p.reference, p.prix_vente,
+                p.prix_gros, p.qte_min_gros,
+                p.stock_actuel, p.seuil_alerte, p.unite_mesure, p.categorie_id,
+                c.nom AS categorie_nom
+                FROM produits p LEFT JOIN categories c ON p.categorie_id = c.id
+                WHERE p.statut='actif' AND p.stock_actuel > 0 ORDER BY p.nom")->fetchAll();
+    }
+
+    /**
+     * Calcule le prix applicable selon la quantité (détail ou gros).
+     */
+    public static function calculerPrix(array $produit, int $quantite): array {
+        $estGros = !empty($produit['prix_gros'])
+            && $produit['qte_min_gros'] > 0
+            && $quantite >= $produit['qte_min_gros'];
+        return [
+            'prix'     => $estGros ? (float)$produit['prix_gros'] : (float)$produit['prix_vente'],
+            'est_gros' => $estGros,
+        ];
     }
 }

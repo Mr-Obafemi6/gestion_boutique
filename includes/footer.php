@@ -93,6 +93,59 @@
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
         new bootstrap.Tooltip(el, { trigger: 'hover' });
     });
+
+    // ── Page Loader ──────────────────────────────────────────
+    (function() {
+        const loader  = document.getElementById('page-loader');
+        const barFill = document.getElementById('loaderBarFill');
+        const label   = document.getElementById('loaderLabel');
+        if (!loader) return;
+
+        function hideLoader() {
+            if (barFill) { barFill.style.transition = 'width .15s'; barFill.style.width = '100%'; }
+            if (label)   label.textContent = 'Prêt !';
+            setTimeout(() => {
+                loader.style.transition = 'opacity .25s';
+                loader.style.opacity    = '0';
+                setTimeout(() => loader.style.display = 'none', 260);
+            }, 120);
+        }
+
+        // Disparaît dès que le DOM est prêt (rapide) + min 400ms visible
+        const t0 = Date.now();
+        const MIN_DISPLAY = 400; // ms minimum d'affichage
+
+        function tryHide() {
+            const elapsed = Date.now() - t0;
+            const wait    = Math.max(0, MIN_DISPLAY - elapsed);
+            setTimeout(hideLoader, wait);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', tryHide);
+        } else {
+            tryHide();
+        }
+        // Sécurité absolue : 2s max
+        setTimeout(hideLoader, 2000);
+
+        // ── Barre de navigation sur clic de lien ─────────────
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript')
+                || link.hasAttribute('download') || link.target === '_blank'
+                || link.hasAttribute('data-bs-toggle')) return;
+            if (href.startsWith('http') && !href.includes(location.hostname)) return;
+            // Barre fine en haut
+            const bar = document.createElement('div');
+            bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;width:0;z-index:99999;background:linear-gradient(90deg,var(--bleu),var(--bleu-fonce));transition:width 1.2s ease;';
+            document.body.appendChild(bar);
+            requestAnimationFrame(() => { bar.style.width = '90%'; });
+        });
+    })();
+
 </script>
 </body>
 </html>

@@ -1,32 +1,55 @@
 <?php
 // ============================================================
-//  modules/ventes/caisse.php — Point de vente
+//  modules/ventes/caisse.php — Point de vente (v2 : gros + clients)
 // ============================================================
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/Vente.php';
 require_once __DIR__ . '/../../includes/Produit.php';
+require_once __DIR__ . '/../../includes/Client.php';
 requireLogin();
 if (!peutFaire('ventes','creer')) redirect(APP_URL . '/includes/acces_refuse.php');
 
 $venteModel   = new Vente();
 $produitModel = new Produit();
+$clientModel  = new Client();
 
+// ── AJAX : recherche client ──────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'search_client') {
+    header('Content-Type: application/json');
+    $q = trim($_GET['q'] ?? '');
+    echo json_encode($q ? $clientModel->rechercher($q) : []);
+    exit;
+}
+
+// ── Traitement vente POST ────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    $panier = json_decode($_POST['panier'] ?? '[]', true);
-    $remise = (float)($_POST['remise'] ?? 0);
-    $recu   = (float)($_POST['montant_recu'] ?? 0);
-    $note   = trim(strip_tags($_POST['note'] ?? ''));
+    $panier         = json_decode($_POST['panier'] ?? '[]', true);
+    $remise         = (float)($_POST['remise']          ?? 0);
+    $recu           = (float)($_POST['montant_recu']    ?? 0);
+    $note           = trim(strip_tags($_POST['note']    ?? ''));
+    $clientId       = (int)($_POST['client_id']         ?? 0);
+    $montantCredit  = (float)($_POST['montant_credit']  ?? 0);
+    $remiseFidelite = (float)($_POST['remise_fidelite'] ?? 0);
 
     if (empty($panier)) { echo json_encode(['success'=>false,'message'=>'Le panier est vide.']); exit; }
-    $total = array_sum(array_map(fn($l)=>$l['quantite']*$l['prix_unitaire'], $panier)) - $remise;
-    if ($recu < $total) { echo json_encode(['success'=>false,'message'=>'Montant reçu insuffisant.']); exit; }
+    $total = array_sum(array_map(fn($l)=>$l['quantite']*$l['prix_unitaire'], $panier)) - $remise - $remiseFidelite;
+    if (($recu + $montantCredit) < $total) {
+        echo json_encode(['success'=>false,'message'=>'Montant reçu insuffisant.']); exit;
+    }
 
-    $result = $venteModel->enregistrer($panier, $remise, $recu, $note);
+    $result = $venteModel->enregistrer($panier, $remise, $recu, $note, $clientId, $montantCredit, $remiseFidelite);
     if (is_array($result)) {
-        echo json_encode(['success'=>true,'vente_id'=>$result['vente_id'],'reference'=>$result['reference'],
-                            'total_net'=>$result['total_net'],'monnaie'=>$result['monnaie'],
-                            'note'=>$result['note'] ?? '']);
+        echo json_encode([
+            'success'        => true,
+            'vente_id'       => $result['vente_id'],
+            'reference'      => $result['reference'],
+            'total_net'      => $result['total_net'],
+            'monnaie'        => $result['monnaie'],
+            'note'           => $result['note'] ?? '',
+            'type_vente'     => $result['type_vente'],
+            'montant_credit' => $result['montant_credit'],
+        ]);
     } else {
         echo json_encode(['success'=>false,'message'=>$result]);
     }
@@ -35,11 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $produits  = $produitModel->getPourVente();
 $pageTitle = "Point de vente";
-
-// Debug pour vérifier les produits chargés
-error_log("Nombre de produits chargés: " . count($produits));
-
-// ── Couleurs par catégorie ───────────────────────────────────
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -677,7 +695,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 $textColor = $style[1];
             ?>
             <div class="prod-card <?= $p['stock_actuel'] <= 0 ? 'zero-stock' : '' ?>"
-                 onclick="if(typeof ajouterAuPanier === 'function') { this.classList.add('added'); setTimeout(() => this.classList.remove('added'), 500); ajouterAuPanier(<?= $p['id'] ?>, '<?= clean(addslashes($p['nom'])) ?>', <?= $p['prix_vente'] ?>, <?= $p['stock_actuel'] ?>) }"
+                 onclick="if(typeof ajouterAuPanier === 'function') { this.classList.add('added'); setTimeout(() => this.classList.remove('added'), 500); ajouterAuPanier(<?= $p['id'] ?>, '<?= clean(addslashes($p['nom'])) ?>', <?= $p['prix_vente'] ?>, <?= $p['stock_actuel'] ?>, <?= $p['prix_gros'] ?? 'null' ?>, <?= (int)($p['qte_min_gros'] ?? 0) ?>) }"
                  data-nom="<?= strtolower(clean($p['nom'])) ?>"
                  style="border-color:<?= $textColor ?>22;">
 
@@ -702,6 +720,11 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="prod-prix" style="color:<?= $textColor ?>;">
                     <?= number_format($p['prix_vente'], 0, ',', ' ') ?> F
                 </div>
+                <?php if (!empty($p['prix_gros'])): ?>
+                <div style="font-size:.68rem;background:#7c3aed;color:#fff;border-radius:20px;padding:1px 8px;display:inline-block;margin-top:.2rem;">
+                    Gros dès <?= (int)$p['qte_min_gros'] ?> : <?= number_format($p['prix_gros'], 0, ',', ' ') ?> F
+                </div>
+                <?php endif; ?>
 
                 <?php if (!empty($p['categorie_nom'])): ?>
                 <div class="prod-cat" style="color:<?= $textColor ?>; background:<?= $bgColor ?>;">
@@ -733,6 +756,31 @@ require_once __DIR__ . '/../../includes/header.php';
             <button class="btn btn-sm btn-light" onclick="if(typeof viderPanier === 'function') viderPanier()" style="font-size:.78rem;">
                 <i class="bi bi-trash3 me-1"></i>Vider
             </button>
+        </div>
+
+        <!-- Sélecteur client -->
+        <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:.65rem .9rem;margin-bottom:.6rem;position:relative;">
+            <div style="font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem;">
+                <i class="bi bi-person-circle me-1"></i>Client (optionnel)
+            </div>
+            <div id="clientNonSelectionne">
+                <div style="position:relative;">
+                    <i class="bi bi-search" style="position:absolute;left:.55rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;"></i>
+                    <input type="text" id="clientSearch" placeholder="Nom ou téléphone…"
+                           autocomplete="off" oninput="rechercherClient(this.value)"
+                           style="width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:.38rem .7rem .38rem 1.8rem;font-size:.82rem;outline:none;">
+                </div>
+                <div id="clientDropdown" style="display:none;position:absolute;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 8px 20px rgba(0,0,0,.08);z-index:100;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+            </div>
+            <div id="clientSelectionne" style="display:none;">
+                <div style="display:flex;align-items:center;gap:.5rem;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;padding:.35rem .65rem;font-size:.82rem;color:#15803d;font-weight:600;cursor:pointer;" onclick="effacerClient()">
+                    <i class="bi bi-person-check-fill"></i>
+                    <span id="clientNomAffiche"></span>
+                    <i class="bi bi-x-circle-fill" style="margin-left:auto;color:#dc2626;"></i>
+                </div>
+                <div id="clientDetteAffiche" style="display:none;font-size:.73rem;color:#dc2626;margin-top:.2rem;"></div>
+                <div id="clientPointsAffiche" style="display:none;font-size:.73rem;color:#7c3aed;margin-top:.1rem;"></div>
+            </div>
         </div>
 
         <!-- Items -->
@@ -779,6 +827,17 @@ require_once __DIR__ . '/../../includes/header.php';
                        min="0" value="" placeholder="0" oninput="if(typeof calculerMonnaie === 'function') calculerMonnaie()">
             </div>
 
+            <!-- Remise fidélité -->
+            <div id="fideliteRow" style="display:none;justify-content:space-between;align-items:center;font-size:.8rem;color:#7c3aed;margin-top:.3rem;padding:.3rem .5rem;background:#faf5ff;border-radius:6px;">
+                <span><i class="bi bi-star-fill me-1"></i>Remise fidélité</span>
+                <span id="fideliteMontant">0 F</span>
+            </div>
+            <!-- Crédit client -->
+            <div id="creditRow" style="display:none;justify-content:space-between;align-items:center;font-size:.8rem;color:#dc2626;margin-top:.3rem;padding:.3rem .5rem;background:#fef2f2;border-radius:6px;">
+                <span><i class="bi bi-credit-card me-1"></i>À crédit</span>
+                <input type="number" id="montantCredit" min="0" step="1" value="0" oninput="calculerMonnaie()"
+                       style="width:90px;text-align:right;border:1px solid #fca5a5;border-radius:5px;padding:.2rem .4rem;font-size:.8rem;color:#dc2626;">
+            </div>
             <!-- Monnaie -->
             <div class="mt-2 monnaie-box" id="monnaieBox" style="display:none;">
                 Monnaie : <span id="monnaieRendue">0 F</span>
@@ -833,17 +892,123 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <script>
 let panier = [];
+let clientActuel = null;
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR') + ' F';
-function ajouterAuPanier(id, nom, prix, stock) {
+
+function ajouterAuPanier(id, nom, prix, stock, prixGros = null, qteMinGros = 0) {
     const idx = panier.findIndex(i => i.produit_id === id);
     if (idx >= 0) {
         if (panier[idx].quantite >= stock) { alert('Stock insuffisant !'); return; }
         panier[idx].quantite++;
     } else {
-        panier.push({ produit_id: id, nom, prix_unitaire: prix, quantite: 1, stock_max: stock });
+        panier.push({
+            produit_id: id, nom,
+            prix_vente:   parseFloat(prix),
+            prix_gros:    prixGros ? parseFloat(prixGros) : null,
+            qte_min_gros: parseInt(qteMinGros) || 0,
+            prix_unitaire: parseFloat(prix),
+            quantite: 1, stock_max: stock, est_gros: false
+        });
     }
+    recalculerPrixGros();
     renderPanier();
 }
+
+function recalculerPrixGros() {
+    panier.forEach(item => {
+        const estGros = item.prix_gros && item.qte_min_gros > 0 && item.quantite >= item.qte_min_gros;
+        item.prix_unitaire = estGros ? item.prix_gros : item.prix_vente;
+        item.est_gros = estGros;
+    });
+}
+
+// ── Fonctions client ─────────────────────────────────────────
+let _timerClient = null;
+function rechercherClient(q) {
+    const dd = document.getElementById('clientDropdown');
+    if (q.length < 2) { dd.style.display = 'none'; return; }
+    clearTimeout(_timerClient);
+    _timerClient = setTimeout(async () => {
+        const resp = await fetch(`?action=search_client&q=${encodeURIComponent(q)}`);
+        const data = await resp.json();
+        dd.innerHTML = '';
+        if (data.length === 0) {
+            dd.innerHTML = '<div style="padding:.5rem .85rem;color:#94a3b8;font-size:.82rem;">Aucun client trouvé</div>';
+        } else {
+            data.forEach(c => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding:.45rem .85rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f8fafc;display:flex;justify-content:space-between;align-items:center;';
+                div.innerHTML = `<span style="font-weight:600">${c.nom}</span><span style="color:#94a3b8;font-size:.76rem;">${c.telephone||''}</span>`;
+                div.onmouseenter = () => div.style.background = '#f1f5f9';
+                div.onmouseleave = () => div.style.background = '';
+                div.onclick = () => selectionnerClient(c);
+                dd.appendChild(div);
+            });
+        }
+        dd.style.display = 'block';
+    }, 280);
+}
+
+function selectionnerClient(c) {
+    clientActuel = c;
+    document.getElementById('clientDropdown').style.display = 'none';
+    document.getElementById('clientSearch').value = '';
+    document.getElementById('clientNonSelectionne').style.display = 'none';
+    document.getElementById('clientSelectionne').style.display = 'block';
+    document.getElementById('clientNomAffiche').textContent = c.nom;
+
+    const detteDiv = document.getElementById('clientDetteAffiche');
+    detteDiv.style.display = c.solde_credit > 0 ? 'block' : 'none';
+    if (c.solde_credit > 0) detteDiv.textContent = '⚠ Dette : ' + fmt(c.solde_credit);
+
+    const ptsDiv = document.getElementById('clientPointsAffiche');
+    ptsDiv.style.display = c.points_fidelite > 0 ? 'block' : 'none';
+    if (c.points_fidelite > 0) ptsDiv.textContent = '★ ' + c.points_fidelite + ' pts = ' + fmt(c.points_fidelite * 10);
+
+    // Fidélité
+    const fideliteRow = document.getElementById('fideliteRow');
+    if (c.points_fidelite > 0) {
+        document.getElementById('fideliteMontant').textContent = fmt(c.points_fidelite * 10);
+        fideliteRow.style.display = 'flex';
+    } else {
+        fideliteRow.style.display = 'none';
+    }
+
+    // Crédit : charger credit_autorise via API
+    fetch(`<?= APP_URL ?>/api/client.php?id=${c.id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const creditAut = parseFloat(data.client.credit_autorise || 0);
+                clientActuel.credit_autorise = creditAut;
+                const creditRow = document.getElementById('creditRow');
+                if (creditAut > 0) {
+                    const marge = creditAut - parseFloat(data.client.solde_credit || 0);
+                    document.getElementById('montantCredit').max = Math.max(0, marge);
+                    creditRow.style.display = 'flex';
+                } else {
+                    creditRow.style.display = 'none';
+                }
+            }
+        }).catch(() => document.getElementById('creditRow').style.display = 'none');
+
+    calculerTotal();
+}
+
+function effacerClient() {
+    clientActuel = null;
+    document.getElementById('clientNonSelectionne').style.display = 'block';
+    document.getElementById('clientSelectionne').style.display = 'none';
+    document.getElementById('fideliteRow').style.display = 'none';
+    document.getElementById('creditRow').style.display = 'none';
+    document.getElementById('montantCredit').value = 0;
+    calculerTotal();
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('[id="clientNonSelectionne"]'))
+        document.getElementById('clientDropdown').style.display = 'none';
+});
 
 function renderPanier() {
     const container = document.getElementById('panierItems');
@@ -877,8 +1042,11 @@ function renderPanier() {
             el = document.createElement('div');
             el.className = 'panier-item';
             el.dataset.idx = i;
+            const badgeGros = item.est_gros
+                ? `<span style="font-size:.6rem;background:#7c3aed;color:#fff;border-radius:20px;padding:1px 5px;margin-left:.25rem;vertical-align:middle;">GROS</span>`
+                : '';
             el.innerHTML = `
-                <div class="item-nom">${item.nom}</div>
+                <div class="item-nom">${item.nom}${badgeGros}</div>
                 <div class="item-ctrl">
                     <button class="btn-moins" data-idx="${i}">−</button>
                     <span class="qte">${item.quantite}</span>
@@ -915,12 +1083,14 @@ document.getElementById('panierItems').addEventListener('click', function(e) {
         const idx = parseInt(btnMoins.dataset.idx);
         panier[idx].quantite--;
         if (panier[idx].quantite <= 0) panier.splice(idx, 1);
+        recalculerPrixGros();
         renderPanier();
     }
     if (btnPlus) {
         const idx = parseInt(btnPlus.dataset.idx);
         if (panier[idx].quantite < panier[idx].stock_max) {
             panier[idx].quantite++;
+            recalculerPrixGros();
             renderPanier();
         } else {
             alert('Stock insuffisant !');
@@ -978,14 +1148,16 @@ function getMontantRemise(sousTotal) {
 }
 
 function calculerTotal() {
-    const sousTotal     = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
-    const montantRemise = getMontantRemise(sousTotal);
-    const total         = Math.max(0, sousTotal - montantRemise);
+    const sousTotal      = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise  = getMontantRemise(sousTotal);
+    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
+        ? clientActuel.points_fidelite * 10 : 0;
+    const total = Math.max(0, sousTotal - montantRemise - remiseFidelite);
 
     document.getElementById('sousTotal').textContent = fmt(sousTotal);
     document.getElementById('totalNet').textContent  = fmt(total);
 
-    // Afficher le montant remise calculé uniquement en mode %
+    // Remise manuelle en mode %
     const ligneMontant = document.getElementById('ligneMontantRemise');
     if (remiseEnPct && montantRemise > 0) {
         ligneMontant.style.display = 'flex';
@@ -998,14 +1170,17 @@ function calculerTotal() {
 }
 
 function calculerMonnaie() {
-    const sousT         = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
-    const montantRemise = getMontantRemise(sousT);
-    const total         = Math.max(0, sousT - montantRemise);
-    const recu          = parseFloat(document.getElementById('montantRecu').value) || 0;
-    const monnaie       = recu - total;
-    const box           = document.getElementById('monnaieBox');
+    const sousT          = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise  = getMontantRemise(sousT);
+    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
+        ? clientActuel.points_fidelite * 10 : 0;
+    const total          = Math.max(0, sousT - montantRemise - remiseFidelite);
+    const recu           = parseFloat(document.getElementById('montantRecu').value) || 0;
+    const credit         = parseFloat(document.getElementById('montantCredit')?.value || 0);
+    const monnaie        = (recu + credit) - total;
+    const box            = document.getElementById('monnaieBox');
 
-    if (recu > 0 && panier.length > 0 && total > 0) {
+    if ((recu > 0 || credit > 0) && panier.length > 0 && total > 0) {
         box.style.display = 'block';
         document.getElementById('monnaieRendue').textContent = fmt(Math.max(0, monnaie));
         box.style.background  = monnaie >= 0 ? '#f0fdf4' : '#fef2f2';
@@ -1030,11 +1205,18 @@ function validerVente() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Traitement...';
 
+    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
+        ? clientActuel.points_fidelite * 10 : 0;
+    const credit = parseFloat(document.getElementById('montantCredit')?.value || 0);
+
     const fd = new FormData();
-    fd.append('panier',       JSON.stringify(panier));
-    fd.append('remise',       montantRemise); // toujours envoyer le montant FCFA
-    fd.append('montant_recu', recu);
-    fd.append('note',         (document.getElementById('noteVente')?.value ?? '').trim());
+    fd.append('panier',          JSON.stringify(panier));
+    fd.append('remise',          montantRemise);
+    fd.append('montant_recu',    recu);
+    fd.append('note',            (document.getElementById('noteVente')?.value ?? '').trim());
+    fd.append('client_id',       clientActuel?.id || 0);
+    fd.append('montant_credit',  credit);
+    fd.append('remise_fidelite', remiseFidelite);
 
     fetch(window.location.href, { method: 'POST', body: fd })
         .then(r => r.json())
