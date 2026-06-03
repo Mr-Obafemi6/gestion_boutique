@@ -377,3 +377,106 @@ function getProduitEmoji(string $nom, int $cat = 0): string {
     $defaults = ['📦','🛍️','🏪','🛒','🎁','📫'];
     return $defaults[abs(crc32($nom)) % count($defaults)];
 }
+
+function getProduitImageUrl(array $produit): ?string {
+    if (!empty($produit['image'])) {
+        return APP_URL . '/uploads/produits/' . htmlspecialchars($produit['image']);
+    }
+
+    $map = [
+        'coca'      => 'imgProduits/stock-photo-chisinau-moldova-march-coca-cola-glass-bottle-with-original-taste-label-showing-2761158803.jpg',
+        'carotte'   => 'imgProduits/stock-photo-orange-carrots-green-leafy-tops-isolated-on-white-background-2755395061.jpg',
+        'piment'    => 'imgProduits/stock-photo-red-hot-natural-chili-pepper-with-leaves-hot-chili-pepper-clipping-path-isolated-on-a-white-2732512111.jpg',
+        'tomate'    => 'imgProduits/stock-photo-tomatoes-isolated-tomato-on-white-background-tomatoes-and-a-half-side-view-with-clipping-path-2194308345.jpg',
+        'oignon'    => 'imgProduits/stock-photo-fresh-red-onion-isolated-on-white-background-vibrant-purple-allium-cepa-bulb-concept-2754470607.jpg',
+        'boeuf'     => 'imgProduits/stock-photo-juicy-medium-rare-beef-steak-on-wooden-board-beef-steak-juicy-medium-rare-expertly-grilled-2710541057.jpg',
+        'steak'     => 'imgProduits/stock-photo-juicy-medium-rare-beef-steak-on-wooden-board-beef-steak-juicy-medium-rare-expertly-grilled-2710541057.jpg',
+        'banane'    => 'imgProduits/stock-photo-beautiful-banana-bunch-and-banana-skin-isolated-on-white-background-organic-banana-fruit-isolated-2655160397.jpg',
+        'pomme'     => 'imgProduits/stock-photo-piece-of-green-apple-isolated-on-white-background-clipping-path-2525274515.jpg',
+        'poisson'   => 'imgProduits/stock-photo-single-blue-mackerel-fish-isolated-2378172633.jpg',
+        'maquereau' => 'imgProduits/stock-photo-single-blue-mackerel-fish-isolated-2378172633.jpg',
+        'ail'       => 'imgProduits/stock-photo-two-garlic-and-garlic-cloves-isolated-on-a-white-background-2470608621.jpg',
+        'poulet'    => 'imgProduits/stock-photo-raw-chicken-legs-drumsticks-perfect-for-roasting-or-frying-offering-a-delicious-and-juicy-flavor-2748624711.jpg',
+        'savon'     => 'imgProduits/stock-photo-piece-of-natural-orange-soap-on-white-background-1878042115.jpg',
+        'orange'    => 'imgProduits/stock-photo-orange-fruit-with-orange-slices-and-leaves-isolated-on-white-background-orange-with-clipping-path-2726276721.jpg',
+        'lait'      => 'imgProduits/stock-photo-johannesburg-south-africa-january-a-box-of-long-life-full-cream-milk-from-dewfresh-2572636691.jpg',
+        'avocat'    => 'imgProduits/stock-photo-many-whole-and-cut-avocados-isolated-on-white-2603537765.jpg',
+        'mangue'    => 'imgProduits/stock-photo-juicy-fresh-mango-with-slices-and-leaves-2564957889.jpg',
+        'poivron'   => 'imgProduits/stock-photo-colorful-assortment-of-red-yellow-orange-and-green-bell-peppers-isolated-on-white-background-2725735591.jpg',
+        'couscous'  => 'imgProduits/stock-photo-udine-italy-august-carrefour-bio-couscous-bags-are-neatly-arranged-on-supermarket-2673422619.jpg',
+        'haricot'   => 'imgProduits/stock-photo--kidney-beans-on-the-market-2514233031.jpg',
+        'crevette'  => 'imgProduits/stock-photo-a-stunning-display-of-delicious-shrimp-on-ice-ideal-for-seafood-dishes-and-raw-bars-for-any-2526043795.jpg',
+        'maïs'      => '',
+        'arachide'  => 'imgProduits/stock-photo-natural-peanut-oil-isolated-on-white-background-aromatic-cooking-oil-derived-from-peanuts-for-deep-2763867095.jpg',
+        'riz'       => '',
+        'pain'      => '',
+        'pate'      => '',
+        'cereales'  => '',
+        'farine'    => '',
+        'jus'       => 'imgProduits/stock-photo-orange-juice-bottle-mockup-front-view-of-orange-juice-glass-bottle-isolated-on-white-pineapple-2496005241.jpg',
+        'biere'     => 'imgProduits/stock-photo-beer-bottle-in-metal-bucket-full-of-ice-cubes-on-white-table-horizontal-composition-top-view-1436292794.jpg',
+        'vin'       => '',
+        'cafe'      => '',
+        'the'       => '',
+        'limonade'  => '',
+        'sirop'     => '',
+        'huile'     => '',
+        'sel'       => 'imgProduits/stock-photo-salt-shaker-and-pile-of-spilled-salt-on-concrete-stone-2437938651.jpg',
+        'sucre'     => 'imgProduits/stock-photo-cubes-of-white-and-cane-sugar-in-boxes-on-a-brown-background-2689611759.jpg',
+        'miel'      => '',
+        'vinaigre'  => '',
+        'sauce'     => '',
+        'mayonnaise'=> 'imgProduits/stock-photo-tasty-mayonnaise-sauce-in-glass-jar-with-blank-label-isolated-on-white-2579060541.jpg',
+        'moutarde'  => '',
+        'viande'    => '',
+        'mouton'    => '',
+        'porc'      => '',
+        'thon'      => 'imgProduits/stock-photo-raw-fresh-red-tuna-fillet-fish-steak-2739180383.jpg',
+        'sardine'   => '',
+        'oeuf'      => 'imgProduits/stock-photo-close-up-of-white-and-brown-eggs-in-a-carton-showcasing-texture-and-color-contrast-2706831887.jpg',
+        'fromage'   => 'imgProduits/stock-photo-maasdam-cheese-isolated-on-white-background-2609465083.jpg',
+        'shampooing'=> '',
+        'dentifrice'=> 'imgProduits/stock-photo-cairo-egypt-september-cavity-and-oral-protection-clove-and-basil-dabur-herb-l-toothpaste-2675959303.jpg',
+        'brosse'    => '',
+        'lessive'   => '',
+        'javel'     => 'imgProduits/stock-photo-toilet-cleaner-green-bottle-isolated-on-white-background-unlabeled-plastic-container-of-liquid-2023096814.jpg',
+        'detergent' => 'imgProduits/stock-photo-toilet-cleaner-green-bottle-isolated-on-white-background-unlabeled-plastic-container-of-liquid-2023096814.jpg',
+        'desinfectant'=> 'imgProduits/stock-photo-toilet-cleaner-green-bottle-isolated-on-white-background-unlabeled-plastic-container-of-liquid-2023096814.jpg',
+        'papier'    => '',
+        'essuie'    => '',
+        'serviette' => '',
+        'couche'    => 'imgProduits/stock-photo-stack-of-disposable-baby-diapers-lsolated-on-clean-white-background-2624754769.jpg',
+        'telephone' => '',
+        'chargeur'  => '',
+        'batterie'  => '',
+        'cable'     => '',
+        'lampe'     => '',
+        'pile'      => '',
+        'ampoule'   => '',
+        'tissu'     => '',
+        'vetement'  => '',
+        'chemise'   => '',
+        'pantalon'  => '',
+        'chaussure' => '',
+        'medicament'=> '',
+        'masque'    => '',
+        'gant'      => '',
+        'sac'       => '',
+        'bougie'    => '',
+        'allumette' => '',
+        'briquet'   => '',
+        'carburant' => '',
+        'ciment'    => '',
+        'fer'       => '',
+        'clou'      => '',
+    ];
+
+    $nom = strtolower($produit['nom'] ?? '');
+    foreach ($map as $mot => $img) {
+        if (str_contains($nom, $mot)) {
+            return APP_URL . '/' . $img;
+        }
+    }
+
+    return null;
+}

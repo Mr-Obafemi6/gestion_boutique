@@ -177,8 +177,9 @@ require_once __DIR__ . '/../../includes/header.php';
                     <td class="ps-3"><code><?= clean($p['reference']) ?></code></td>
                     <td>
                         <div class="d-flex align-items-center gap-3">
-                            <?php if (!empty($p['image'])): ?>
-                            <img src="<?= APP_URL ?>/uploads/produits/<?= htmlspecialchars($p['image']) ?>"
+                            <?php $imgUrl = getProduitImageUrl($p); ?>
+                            <?php if ($imgUrl): ?>
+                            <img src="<?= $imgUrl ?>"
                                     alt="<?= clean($p['nom']) ?>"
                                     style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;">
                             <?php else: ?>

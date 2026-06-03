@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-//  modules/ventes/caisse.php — Point de vente (v2 : gros + clients)
+//  modules/ventes/caisse.php — Point de vente (: gros + clients)
 // ============================================================
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/Vente.php';
@@ -33,6 +33,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $remiseFidelite = (float)($_POST['remise_fidelite'] ?? 0);
 
     if (empty($panier)) { echo json_encode(['success'=>false,'message'=>'Le panier est vide.']); exit; }
+
+    if ($montantCredit > 0 && $clientId <= 0) {
+        echo json_encode(['success'=>false,'message'=>'Crédit client nécessite un client sélectionné.']); exit;
+    }
+
+    if ($remiseFidelite > 0) {
+        if ($clientId <= 0) {
+            echo json_encode(['success'=>false,'message'=>'Remise fidélité nécessite un client sélectionné.']); exit;
+        }
+        $client = $clientModel->getById($clientId);
+        if (!$client) {
+            echo json_encode(['success'=>false,'message'=>'Client introuvable.']); exit;
+        }
+        $maxFidelite = $client['points_fidelite'] * Client::VALEUR_POINT;
+        if ($remiseFidelite > $maxFidelite) {
+            echo json_encode(['success'=>false,'message'=>'Montant de remise fidélité trop élevé.']); exit;
+        }
+    }
+
+    // ── VALIDATION : Vérifier les prix et recalculer si nécessaire ──────
+    foreach ($panier as &$ligne) {
+        $produit = $produitModel->getById($ligne['produit_id']);
+        if (!$produit) {
+            echo json_encode(['success'=>false,'message'=>'Produit introuvable : ' . $ligne['produit_id']]); exit;
+        }
+
+        // Recalculer le prix selon quantité
+        $prixCalcule = Produit::calculerPrix($produit, (int)$ligne['quantite']);
+        $prixAttendu = $prixCalcule['prix'];
+        $estGrosAttendu = $prixCalcule['est_gros'];
+
+        // Tolérer 1% de variation (arrondis floats)
+        $tolerance = abs($prixAttendu * 0.01);
+        $ecart = abs($ligne['prix_unitaire'] - $prixAttendu);
+
+        if ($ecart > $tolerance) {
+            // Prix incorrect rejeté pour sécurité
+            echo json_encode(['success'=>false,'message'=>'Prix invalide pour ' . $produit['nom'] . ' (attendu ' . $prixAttendu . ', reçu ' . $ligne['prix_unitaire'] . ')']);
+            exit;
+        }
+
+        // Corriger le prix et est_gros
+        $ligne['prix_unitaire'] = $prixAttendu;
+        $ligne['est_gros']      = $estGrosAttendu;
+    }
+
     $total = array_sum(array_map(fn($l)=>$l['quantite']*$l['prix_unitaire'], $panier)) - $remise - $remiseFidelite;
     if (($recu + $montantCredit) < $total) {
         echo json_encode(['success'=>false,'message'=>'Montant reçu insuffisant.']); exit;
@@ -56,8 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$produits  = $produitModel->getPourVente();
-$pageTitle = "Point de vente";
+$produits    = $produitModel->getPourVente();
+$categories = $produitModel->getCategories();
+$pageTitle   = "Point de vente";
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -236,7 +283,7 @@ require_once __DIR__ . '/../../includes/header.php';
 /* ─── Grille produits moderne ───────────────────────────────── */
 .produits-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
     overflow-y: auto;
     padding-right: 0.5rem;
@@ -261,107 +308,103 @@ require_once __DIR__ . '/../../includes/header.php';
 /* ─── Carte produit réaliste ────────────────────────────────── */
 .prod-card {
     background: white;
-    border: 2px solid var(--gray-200);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
-    padding: 1.25rem;
+    padding: 1rem;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
     position: relative;
     user-select: none;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .08);
     overflow: hidden;
-}
-.prod-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--gray-300), var(--gray-400));
-    transform: scaleX(0);
-    transition: transform 0.3s;
 }
 .prod-card * { pointer-events: none; }
 .prod-card:hover {
-    box-shadow: var(--shadow-xl);
-    transform: translateY(-6px) scale(1.02);
-    border-color: var(--primary);
-}
-.prod-card:hover::before {
-    transform: scaleX(1);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, .12);
+    transform: translateY(-4px);
+    border-color: rgba(59, 130, 246, .3);
 }
 .prod-card.added {
     animation: product-added 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 @keyframes product-added {
     0% { transform: scale(1); }
-    30% { transform: scale(1.15) rotate(3deg); box-shadow: 0 0 30px rgba(5, 150, 105, 0.6); }
-    60% { transform: scale(0.95) rotate(-2deg); }
+    30% { transform: scale(1.08) rotate(0.5deg); box-shadow: 0 0 24px rgba(59, 130, 246, 0.25); }
+    60% { transform: scale(0.98) rotate(-0.5deg); }
     100% { transform: scale(1); }
 }
 .prod-card.zero-stock {
-    opacity: 0.5;
+    opacity: 0.55;
     cursor: not-allowed;
     pointer-events: none;
-    filter: grayscale(0.8);
+    filter: grayscale(0.85);
+}
+.card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+}
+.card-head-text {
+    min-width: 0;
+}
+.prod-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
 }
 .prod-card .stock-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
     background: var(--gray-100);
-    color: var(--gray-600);
-    font-size: .75rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
-    margin-bottom: 0.75rem;
+    color: var(--gray-700);
+    font-size: .78rem;
+    font-weight: 700;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
     border: 1px solid var(--gray-200);
 }
-.prod-card .stock-badge.low { 
-    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+.prod-card .stock-badge.low {
+    background: #fff3f2;
     color: var(--danger);
     border-color: #fecaca;
-    animation: stock-warning 2s infinite;
-}
-@keyframes stock-warning {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
 }
 .prod-icon-wrap {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
+    width: 52px;
+    height: 52px;
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.6rem;
+    font-size: 1.45rem;
     flex-shrink: 0;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, .06);
+    transition: transform .25s ease, box-shadow .25s ease;
 }
 .prod-card:hover .prod-icon-wrap {
-    transform: scale(1.1) rotate(-5deg);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(15, 23, 42, .09);
 }
 .prod-cat {
-    display: inline-block;
-    font-size: .7rem;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 12px;
-    margin-top: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border: 1px solid rgba(0,0,0,0.1);
+    display: inline-flex;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 0.28rem 0.75rem;
+    border-radius: 999px;
+    color: var(--gray-700);
+    background: var(--gray-100);
+    margin-top: 0.35rem;
 }
 .prod-card .prod-nom {
-    font-size: .9rem;
-    font-weight: 600;
-    color: var(--gray-800);
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--gray-900);
     line-height: 1.4;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -372,7 +415,16 @@ require_once __DIR__ . '/../../includes/header.php';
     font-size: 1.1rem;
     font-weight: 800;
     color: var(--primary);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.prod-gros {
+    font-size: .72rem;
+    color: var(--gray-600);
+    background: var(--gray-100);
+    display: inline-flex;
+    align-items: center;
+    padding: 0.38rem 0.75rem;
+    border-radius: 999px;
+    margin-top: 0.2rem;
 }
 
 /* ─── Panneau panier simplifié ─────────────────────────────────── */
@@ -662,12 +714,20 @@ require_once __DIR__ . '/../../includes/header.php';
     <!-- ── PANNEAU GAUCHE : Produits ──────────────────────── -->
     <div class="produits-panel">
         <!-- Barre Scan + Recherche -->
-        <div class="d-flex gap-2 mb-3">
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
             <div class="search-caisse flex-grow-1">
                 <i class="bi bi-search"></i>
                 <input type="text" id="searchProd" class="form-control"
                        placeholder="Rechercher un produit par nom..."
                        autocomplete="off">
+            </div>
+            <div class="category-filter" style="min-width:200px;">
+                <select id="categoryFilter" class="form-select">
+                    <option value="">Toutes catégories</option>
+                    <?php foreach ($categories as $cat): ?>
+                    <option value="<?= htmlspecialchars(strtolower($cat['nom'])) ?>"><?= clean($cat['nom']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <button class="btn btn-scan" id="btnScan" title="Scanner un code-barres">
                 <i class="bi bi-upc-scan"></i>
@@ -695,42 +755,48 @@ require_once __DIR__ . '/../../includes/header.php';
                 $textColor = $style[1];
             ?>
             <div class="prod-card <?= $p['stock_actuel'] <= 0 ? 'zero-stock' : '' ?>"
-                 onclick="if(typeof ajouterAuPanier === 'function') { this.classList.add('added'); setTimeout(() => this.classList.remove('added'), 500); ajouterAuPanier(<?= $p['id'] ?>, '<?= clean(addslashes($p['nom'])) ?>', <?= $p['prix_vente'] ?>, <?= $p['stock_actuel'] ?>, <?= $p['prix_gros'] ?? 'null' ?>, <?= (int)($p['qte_min_gros'] ?? 0) ?>) }"
-                 data-nom="<?= strtolower(clean($p['nom'])) ?>"
-                 style="border-color:<?= $textColor ?>22;">
+                    onclick='if(typeof ajouterAuPanier === "function") { this.classList.add("added"); setTimeout(() => this.classList.remove("added"), 500); ajouterAuPanier(<?= $p['id'] ?>, <?= json_encode(clean($p['nom'])) ?>, <?= $p['prix_vente'] ?>, <?= $p['stock_actuel'] ?>, <?= $p['prix_gros'] ?? 'null' ?>, <?= (int)($p['qte_min_gros'] ?? 0) ?>) }'
+                    data-nom="<?= strtolower(clean($p['nom'])) ?>"
+                    data-cat="<?= htmlspecialchars(strtolower($p['categorie_nom'] ?? '')) ?>"
+                    style="border-color:<?= $textColor ?>22;">
 
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <?php if (!empty($p['image'])): ?>
+                <div class="card-head">
+                    <?php $imgUrl = getProduitImageUrl($p); ?>
+                    <?php if ($imgUrl): ?>
                     <div class="prod-icon-wrap" style="background:<?= $bgColor ?>; overflow:hidden; padding:0;">
-                        <img src="<?= APP_URL ?>/uploads/produits/<?= htmlspecialchars($p['image']) ?>"
-                             alt="<?= clean($p['nom']) ?>"
-                             style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
+                        <img src="<?= $imgUrl ?>"
+                            alt="<?= clean($p['nom']) ?>"
+                            style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
                     </div>
                     <?php else: ?>
                     <span class="prod-icon-wrap" style="background:<?= $bgColor ?>; color:<?= $textColor ?>;">
                         <?= getProduitEmoji($p['nom']) ?>
                     </span>
                     <?php endif; ?>
+
+                    <div class="card-head-text">
+                        <div class="prod-nom"><?= clean($p['nom']) ?></div>
+                        <?php if (!empty($p['categorie_nom'])): ?>
+                        <div class="prod-cat"><?= clean($p['categorie_nom']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="prod-footer">
+                    <div>
+                        <div class="prod-prix" style="color:<?= $textColor ?>;">
+                            <?= number_format($p['prix_vente'], 0, ',', ' ') ?> F
+                        </div>
+                        <?php if (!empty($p['prix_gros'])): ?>
+                        <div class="prod-gros">
+                            Gros dès <?= (int)$p['qte_min_gros'] ?> : <?= number_format($p['prix_gros'], 0, ',', ' ') ?> F
+                        </div>
+                        <?php endif; ?>
+                    </div>
                     <span class="stock-badge <?= $stockFaible ? 'low' : '' ?>">
                         <?= $p['stock_actuel'] ?> en stock
                     </span>
                 </div>
-
-                <div class="prod-nom"><?= clean($p['nom']) ?></div>
-                <div class="prod-prix" style="color:<?= $textColor ?>;">
-                    <?= number_format($p['prix_vente'], 0, ',', ' ') ?> F
-                </div>
-                <?php if (!empty($p['prix_gros'])): ?>
-                <div style="font-size:.68rem;background:#7c3aed;color:#fff;border-radius:20px;padding:1px 8px;display:inline-block;margin-top:.2rem;">
-                    Gros dès <?= (int)$p['qte_min_gros'] ?> : <?= number_format($p['prix_gros'], 0, ',', ' ') ?> F
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($p['categorie_nom'])): ?>
-                <div class="prod-cat" style="color:<?= $textColor ?>; background:<?= $bgColor ?>;">
-                    <?= clean($p['categorie_nom']) ?>
-                </div>
-                <?php endif; ?>
             </div>
             <?php endforeach; ?>
 
@@ -926,26 +992,31 @@ function recalculerPrixGros() {
 let _timerClient = null;
 function rechercherClient(q) {
     const dd = document.getElementById('clientDropdown');
-    if (q.length < 2) { dd.style.display = 'none'; return; }
+    if (q.length < 1) { dd.style.display = 'none'; return; }
     clearTimeout(_timerClient);
     _timerClient = setTimeout(async () => {
-        const resp = await fetch(`?action=search_client&q=${encodeURIComponent(q)}`);
-        const data = await resp.json();
-        dd.innerHTML = '';
-        if (data.length === 0) {
-            dd.innerHTML = '<div style="padding:.5rem .85rem;color:#94a3b8;font-size:.82rem;">Aucun client trouvé</div>';
-        } else {
-            data.forEach(c => {
-                const div = document.createElement('div');
-                div.style.cssText = 'padding:.45rem .85rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f8fafc;display:flex;justify-content:space-between;align-items:center;';
-                div.innerHTML = `<span style="font-weight:600">${c.nom}</span><span style="color:#94a3b8;font-size:.76rem;">${c.telephone||''}</span>`;
-                div.onmouseenter = () => div.style.background = '#f1f5f9';
-                div.onmouseleave = () => div.style.background = '';
-                div.onclick = () => selectionnerClient(c);
-                dd.appendChild(div);
-            });
+        try {
+            const resp = await fetch(`?action=search_client&q=${encodeURIComponent(q)}`);
+            const data = await resp.json();
+            dd.innerHTML = '';
+            if (!Array.isArray(data) || data.length === 0) {
+                dd.innerHTML = '<div style="padding:.5rem .85rem;color:#94a3b8;font-size:.82rem;">Aucun client trouvé</div>';
+            } else {
+                data.forEach(c => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding:.45rem .85rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f8fafc;display:flex;justify-content:space-between;align-items:center;';
+                    div.innerHTML = `<span style="font-weight:600">${c.nom}</span><span style="color:#94a3b8;font-size:.76rem;">${c.telephone||''}</span>`;
+                    div.onmouseenter = () => div.style.background = '#f1f5f9';
+                    div.onmouseleave = () => div.style.background = '';
+                    div.onclick = () => selectionnerClient(c);
+                    dd.appendChild(div);
+                });
+            }
+            dd.style.display = 'block';
+        } catch (err) {
+            dd.innerHTML = '<div style="padding:.5rem .85rem;color:#dc2626;font-size:.82rem;">Erreur de recherche client</div>';
+            dd.style.display = 'block';
         }
-        dd.style.display = 'block';
     }, 280);
 }
 
@@ -1006,8 +1077,9 @@ function effacerClient() {
 }
 
 document.addEventListener('click', e => {
-    if (!e.target.closest('[id="clientNonSelectionne"]'))
+    if (!e.target.closest('#clientNonSelectionne')) {
         document.getElementById('clientDropdown').style.display = 'none';
+    }
 });
 
 function renderPanier() {
@@ -1059,6 +1131,10 @@ function renderPanier() {
             container.appendChild(el);
         } else {
             // Mettre à jour seulement les valeurs qui changent
+            const badgeGros = item.est_gros
+                ? `<span style="font-size:.6rem;background:#7c3aed;color:#fff;border-radius:20px;padding:1px 5px;margin-left:.25rem;vertical-align:middle;">GROS</span>`
+                : '';
+            el.querySelector('.item-nom').innerHTML     = `${item.nom}${badgeGros}`;
             el.querySelector('.qte').textContent       = item.quantite;
             el.querySelector('.item-prix').textContent = fmt(item.quantite * item.prix_unitaire);
             el.querySelector('.btn-moins').dataset.idx = i;
@@ -1194,20 +1270,19 @@ function calculerMonnaie() {
 function validerVente() {
     if (panier.length === 0) { alert('Le panier est vide !'); return; }
 
-    const sousTotal     = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
-    const montantRemise = getMontantRemise(sousTotal);
-    const total         = Math.max(0, sousTotal - montantRemise);
-    const recu          = parseFloat(document.getElementById('montantRecu').value) || 0;
+    const sousTotal      = panier.reduce((s, i) => s + i.quantite * i.prix_unitaire, 0);
+    const montantRemise  = getMontantRemise(sousTotal);
+    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
+        ? clientActuel.points_fidelite * 10 : 0;
+    const total          = Math.max(0, sousTotal - montantRemise - remiseFidelite);
+    const recu           = parseFloat(document.getElementById('montantRecu').value) || 0;
+    const credit         = parseFloat(document.getElementById('montantCredit')?.value || 0);
 
-    if (recu < total) { alert('Montant reçu insuffisant !'); return; }
+    if ((recu + credit) < total) { alert('Montant reçu insuffisant !'); return; }
 
     const btn = document.getElementById('btnValider');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Traitement...';
-
-    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
-        ? clientActuel.points_fidelite * 10 : 0;
-    const credit = parseFloat(document.getElementById('montantCredit')?.value || 0);
 
     const fd = new FormData();
     fd.append('panier',          JSON.stringify(panier));
@@ -1239,6 +1314,8 @@ function afficherTicket(data, montantRemise) {
         </div>`
     ).join('');
 
+    const remiseFidelite = (clientActuel && clientActuel.points_fidelite > 0)
+        ? clientActuel.points_fidelite * 10 : 0;
     const recu         = parseFloat(document.getElementById('montantRecu').value) || 0;
     const ligneMonnaie = `<div style="display:flex;justify-content:space-between;"><span>Monnaie</span><strong>${fmt(data.monnaie)}</strong></div>`;
 
@@ -1254,6 +1331,12 @@ function afficherTicket(data, montantRemise) {
         </div>`;
     }
 
+    const ligneFidelite = remiseFidelite > 0
+        ? `<div style="display:flex;justify-content:space-between;color:#7c3aed;">
+                <span>Remise fidélité</span><span>− ${fmt(remiseFidelite)}</span>
+           </div>`
+        : '';
+
     document.getElementById('ticketContent').innerHTML = `
         <div style="text-align:center;border-bottom:1px dashed #ccc;padding-bottom:.6rem;margin-bottom:.6rem;">
             <strong style="font-size:1rem;"><?= APP_NAME ?></strong><br>
@@ -1262,6 +1345,7 @@ function afficherTicket(data, montantRemise) {
         </div>
         <div style="border-bottom:1px dashed #ccc;padding-bottom:.6rem;margin-bottom:.6rem;">${lignes}</div>
         ${ligneRemise}
+        ${ligneFidelite}
         <div style="display:flex;justify-content:space-between;"><span>Total net</span><strong>${fmt(data.total_net)}</strong></div>
         <div style="display:flex;justify-content:space-between;"><span>Reçu</span><span>${fmt(recu)}</span></div>
         ${ligneMonnaie}
@@ -1304,13 +1388,19 @@ function nouvelleVente() {
 
 
 
-// ── Recherche produits par nom ───────────────────────────────
-document.getElementById('searchProd').addEventListener('input', function() {
-    const q = this.value.toLowerCase();
+// ── Recherche produits par nom / catégorie ───────────────────────────────
+function filterProduits() {
+    const query = document.getElementById('searchProd').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
     document.querySelectorAll('.prod-card').forEach(c => {
-        c.style.display = c.dataset.nom.includes(q) ? '' : 'none';
+        const matchesNom = c.dataset.nom.includes(query);
+        const matchesCat = category === '' || c.dataset.cat === category;
+        c.style.display = matchesNom && matchesCat ? '' : 'none';
     });
-});
+}
+
+document.getElementById('searchProd').addEventListener('input', filterProduits);
+document.getElementById('categoryFilter').addEventListener('change', filterProduits);
 
 // ── Système de scan code-barres ──────────────────────────────
 let scanMode    = false;
@@ -1377,7 +1467,14 @@ function rechercherParCode(code) {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                ajouterAuPanier(data.produit.id, data.produit.nom, data.produit.prix_vente, data.produit.stock_actuel);
+                ajouterAuPanier(
+                    data.produit.id,
+                    data.produit.nom,
+                    data.produit.prix_vente,
+                    data.produit.stock_actuel,
+                    data.produit.prix_gros,
+                    data.produit.qte_min_gros
+                );
                 document.getElementById('scanMsg').textContent = 'En attente de scan...';
                 afficherNotif(data.produit.nom + ' ajouté au panier', 'found');
             } else {

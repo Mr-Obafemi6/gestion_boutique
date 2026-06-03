@@ -67,17 +67,54 @@ INSERT INTO categories (nom, description) VALUES
     ('Textile',         'Vêtements et tissus');
 
 -- ============================================================
+-- TABLE : clients
+-- ============================================================
+CREATE TABLE clients (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nom             VARCHAR(150) NOT NULL,
+    telephone       VARCHAR(20)  DEFAULT NULL,
+    email           VARCHAR(150) DEFAULT NULL,
+    adresse         TEXT         DEFAULT NULL,
+    type_client     ENUM('particulier','grossiste') DEFAULT 'particulier',
+    points_fidelite INT UNSIGNED NOT NULL DEFAULT 0,
+    credit_autorise DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    solde_credit    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    statut          ENUM('actif','inactif') DEFAULT 'actif',
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- TABLE : paiements_credit
+-- (Enregistre les remboursements partiels ou totaux)
+-- ============================================================
+CREATE TABLE paiements_credit (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_id       INT UNSIGNED NOT NULL,
+    montant         DECIMAL(10,2) NOT NULL,
+    note            VARCHAR(255) DEFAULT NULL,
+    utilisateur_id  INT UNSIGNED NOT NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id)      REFERENCES clients(id)      ON DELETE RESTRICT,
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- ============================================================
 -- TABLE : produits
 -- ============================================================
 CREATE TABLE produits (
     id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     reference      VARCHAR(50) NOT NULL UNIQUE,
+    code_barre     VARCHAR(100) UNIQUE NULL DEFAULT NULL,
     nom            VARCHAR(150) NOT NULL,
     description    TEXT DEFAULT NULL,
     categorie_id   INT UNSIGNED NOT NULL,
     unite_mesure   VARCHAR(30) DEFAULT 'pièce',
     prix_achat     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     prix_vente     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    prix_gros      DECIMAL(10,2) NULL DEFAULT NULL,
+    qte_min_gros   INT UNSIGNED NOT NULL DEFAULT 0,
+    image          VARCHAR(255) NULL DEFAULT NULL,
     stock_actuel   INT NOT NULL DEFAULT 0,
     seuil_alerte   INT NOT NULL DEFAULT 5,
     statut         ENUM('actif','inactif') DEFAULT 'actif',
@@ -123,16 +160,21 @@ CREATE TABLE mouvements_stock (
 -- ============================================================
 CREATE TABLE ventes (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    reference       VARCHAR(50) NOT NULL UNIQUE,   -- ex: VTE-20250101-0001
+    reference       VARCHAR(50) NOT NULL UNIQUE,
     total_ht        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     remise          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     total_net       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     montant_recu    DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     monnaie_rendue  DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    mode_paiement   ENUM('especes','flooz','tmoney','carte') NOT NULL DEFAULT 'especes',
+    note            VARCHAR(500) NULL DEFAULT NULL,
     statut          ENUM('validee','annulee') DEFAULT 'validee',
     utilisateur_id  INT UNSIGNED NOT NULL,
+    client_id       INT UNSIGNED NULL DEFAULT NULL,
+    type_vente      ENUM('detail','gros') NOT NULL DEFAULT 'detail',
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE RESTRICT
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE RESTRICT,
+    FOREIGN KEY (client_id)      REFERENCES clients(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ============================================================
@@ -211,7 +253,73 @@ GROUP BY p.id
 ORDER BY total_vendu DESC;
 
 -- ============================================================
--- TABLE : messages (messagerie interne)
+-- TABLE : password_resets (réinitialisation mot de passe)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS password_resets (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    email      VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL UNIQUE,
+    token      VARCHAR(64)  CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+    expires_at DATETIME     NOT NULL,
+    created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_token (token),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ============================================================
+-- TABLE : permissions (granulaires par rôle)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS permissions (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    role       VARCHAR(50)  NOT NULL,
+    module     VARCHAR(50)  NOT NULL,
+    action     VARCHAR(20)  NOT NULL,
+    autorise   TINYINT(1)   NOT NULL DEFAULT 1,
+    updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_perm (role, module, action)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Permissions par défaut
+INSERT INTO permissions (role, module, action, autorise) VALUES
+('administrateur','produits','voir',1),('administrateur','produits','creer',1),('administrateur','produits','modifier',1),('administrateur','produits','supprimer',1),('administrateur','produits','exporter',1),
+('administrateur','stock','voir',1),('administrateur','stock','creer',1),('administrateur','stock','modifier',1),('administrateur','stock','supprimer',1),('administrateur','stock','exporter',1),
+('administrateur','ventes','voir',1),('administrateur','ventes','creer',1),('administrateur','ventes','modifier',1),('administrateur','ventes','supprimer',1),('administrateur','ventes','exporter',1),
+('administrateur','rapports','voir',1),('administrateur','rapports','creer',1),('administrateur','rapports','modifier',1),('administrateur','rapports','supprimer',1),('administrateur','rapports','exporter',1),
+('administrateur','fournisseurs','voir',1),('administrateur','fournisseurs','creer',1),('administrateur','fournisseurs','modifier',1),('administrateur','fournisseurs','supprimer',1),('administrateur','fournisseurs','exporter',1),
+('administrateur','messagerie','voir',1),('administrateur','messagerie','creer',1),('administrateur','messagerie','modifier',1),('administrateur','messagerie','supprimer',1),('administrateur','messagerie','exporter',1),
+('administrateur','utilisateurs','voir',1),('administrateur','utilisateurs','creer',1),('administrateur','utilisateurs','modifier',1),('administrateur','utilisateurs','supprimer',1),('administrateur','utilisateurs','exporter',1),
+('administrateur','clients','lire',1),('administrateur','clients','voir',1),('administrateur','clients','creer',1),('administrateur','clients','modifier',1),('administrateur','clients','supprimer',1),('administrateur','clients','exporter',1),
+('caissier','produits','voir',1),('caissier','produits','creer',0),('caissier','produits','modifier',0),('caissier','produits','supprimer',0),('caissier','produits','exporter',0),
+('caissier','stock','voir',0),('caissier','stock','creer',0),('caissier','stock','modifier',0),('caissier','stock','supprimer',0),('caissier','stock','exporter',0),
+('caissier','ventes','voir',1),('caissier','ventes','creer',1),('caissier','ventes','modifier',0),('caissier','ventes','supprimer',0),('caissier','ventes','exporter',0),
+('caissier','rapports','voir',1),('caissier','rapports','creer',0),('caissier','rapports','modifier',0),('caissier','rapports','supprimer',0),('caissier','rapports','exporter',0),
+('caissier','fournisseurs','voir',0),('caissier','fournisseurs','creer',0),('caissier','fournisseurs','modifier',0),('caissier','fournisseurs','supprimer',0),('caissier','fournisseurs','exporter',0),
+('caissier','messagerie','voir',1),('caissier','messagerie','creer',1),('caissier','messagerie','modifier',0),('caissier','messagerie','supprimer',1),('caissier','messagerie','exporter',0),
+('caissier','utilisateurs','voir',0),('caissier','utilisateurs','creer',0),('caissier','utilisateurs','modifier',0),('caissier','utilisateurs','supprimer',0),('caissier','utilisateurs','exporter',0),
+('caissier','clients','lire',1),('caissier','clients','voir',1),('caissier','clients','creer',1),('caissier','clients','modifier',1),('caissier','clients','supprimer',0),('caissier','clients','exporter',0),
+('magasinier','produits','voir',1),('magasinier','produits','creer',1),('magasinier','produits','modifier',1),('magasinier','produits','supprimer',0),('magasinier','produits','exporter',0),
+('magasinier','stock','voir',1),('magasinier','stock','creer',1),('magasinier','stock','modifier',1),('magasinier','stock','supprimer',0),('magasinier','stock','exporter',0),
+('magasinier','ventes','voir',1),('magasinier','ventes','creer',0),('magasinier','ventes','modifier',0),('magasinier','ventes','supprimer',0),('magasinier','ventes','exporter',0),
+('magasinier','rapports','voir',0),('magasinier','rapports','creer',0),('magasinier','rapports','modifier',0),('magasinier','rapports','supprimer',0),('magasinier','rapports','exporter',0),
+('magasinier','fournisseurs','voir',1),('magasinier','fournisseurs','creer',1),('magasinier','fournisseurs','modifier',1),('magasinier','fournisseurs','supprimer',0),('magasinier','fournisseurs','exporter',0),
+('magasinier','messagerie','voir',1),('magasinier','messagerie','creer',1),('magasinier','messagerie','modifier',0),('magasinier','messagerie','supprimer',1),('magasinier','messagerie','exporter',0),
+('magasinier','utilisateurs','voir',0),('magasinier','utilisateurs','creer',0),('magasinier','utilisateurs','modifier',0),('magasinier','utilisateurs','supprimer',0),('magasinier','utilisateurs','exporter',0),
+('magasinier','clients','lire',1),('magasinier','clients','voir',1),('magasinier','clients','creer',0),('magasinier','clients','modifier',0),('magasinier','clients','supprimer',0),('magasinier','clients','exporter',0)
+ON DUPLICATE KEY UPDATE autorise = VALUES(autorise);
+
+-- ============================================================
+-- TABLE : connexions_log (historique des connexions)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS connexions_log (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    utilisateur_id INT UNSIGNED NOT NULL,
+    ip             VARCHAR(45)  NOT NULL DEFAULT '',
+    user_agent     VARCHAR(255) DEFAULT NULL,
+    statut         ENUM('succes','echec') NOT NULL DEFAULT 'succes',
+    created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_uid  (utilisateur_id),
+    INDEX idx_date (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ============================================================
 CREATE TABLE messages (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -247,96 +355,3 @@ INSERT INTO parametres (cle, valeur) VALUES
 
 -- Colonne avatar dans utilisateurs
 ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS avatar VARCHAR(255) DEFAULT NULL;
-
--- ============================================================
--- TABLE : password_resets  (réinitialisation mot de passe)
--- Créer cette table dans phpMyAdmin si elle n'existe pas
--- ============================================================
-CREATE TABLE IF NOT EXISTS password_resets (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    email      VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL UNIQUE,
-    token      VARCHAR(64)  CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-    expires_at DATETIME     NOT NULL,
-    created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_token (token),
-    INDEX idx_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ============================================================
--- MIGRATION : Ajout du mode de paiement sur les ventes
--- Exécuter dans phpMyAdmin si la colonne n'existe pas encore
--- ============================================================
-ALTER TABLE ventes
-    ADD COLUMN IF NOT EXISTS mode_paiement
-        ENUM('especes','flooz','tmoney','carte')
-        NOT NULL DEFAULT 'especes'
-        AFTER monnaie_rendue;
-
--- ============================================================
--- TABLE : permissions (granulaires par rôle)
--- ============================================================
-CREATE TABLE IF NOT EXISTS permissions (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    role       VARCHAR(50)  NOT NULL,
-    module     VARCHAR(50)  NOT NULL,
-    action     VARCHAR(20)  NOT NULL,
-    autorise   TINYINT(1)   NOT NULL DEFAULT 1,
-    updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_perm (role, module, action)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Permissions par défaut : administrateur a tout
-INSERT INTO permissions (role, module, action, autorise) VALUES
-('administrateur','produits','voir',1),('administrateur','produits','creer',1),('administrateur','produits','modifier',1),('administrateur','produits','supprimer',1),('administrateur','produits','exporter',1),
-('administrateur','stock','voir',1),('administrateur','stock','creer',1),('administrateur','stock','modifier',1),('administrateur','stock','supprimer',1),('administrateur','stock','exporter',1),
-('administrateur','ventes','voir',1),('administrateur','ventes','creer',1),('administrateur','ventes','modifier',1),('administrateur','ventes','supprimer',1),('administrateur','ventes','exporter',1),
-('administrateur','rapports','voir',1),('administrateur','rapports','creer',1),('administrateur','rapports','modifier',1),('administrateur','rapports','supprimer',1),('administrateur','rapports','exporter',1),
-('administrateur','fournisseurs','voir',1),('administrateur','fournisseurs','creer',1),('administrateur','fournisseurs','modifier',1),('administrateur','fournisseurs','supprimer',1),('administrateur','fournisseurs','exporter',1),
-('administrateur','messagerie','voir',1),('administrateur','messagerie','creer',1),('administrateur','messagerie','modifier',1),('administrateur','messagerie','supprimer',1),('administrateur','messagerie','exporter',1),
-('administrateur','utilisateurs','voir',1),('administrateur','utilisateurs','creer',1),('administrateur','utilisateurs','modifier',1),('administrateur','utilisateurs','supprimer',1),('administrateur','utilisateurs','exporter',1),
--- Caissier : ventes + messagerie, pas de suppression ni export
-('caissier','produits','voir',1),('caissier','produits','creer',0),('caissier','produits','modifier',0),('caissier','produits','supprimer',0),('caissier','produits','exporter',0),
-('caissier','stock','voir',0),('caissier','stock','creer',0),('caissier','stock','modifier',0),('caissier','stock','supprimer',0),('caissier','stock','exporter',0),
-('caissier','ventes','voir',1),('caissier','ventes','creer',1),('caissier','ventes','modifier',0),('caissier','ventes','supprimer',0),('caissier','ventes','exporter',0),
-('caissier','rapports','voir',1),('caissier','rapports','creer',0),('caissier','rapports','modifier',0),('caissier','rapports','supprimer',0),('caissier','rapports','exporter',0),
-('caissier','fournisseurs','voir',0),('caissier','fournisseurs','creer',0),('caissier','fournisseurs','modifier',0),('caissier','fournisseurs','supprimer',0),('caissier','fournisseurs','exporter',0),
-('caissier','messagerie','voir',1),('caissier','messagerie','creer',1),('caissier','messagerie','modifier',0),('caissier','messagerie','supprimer',1),('caissier','messagerie','exporter',0),
-('caissier','utilisateurs','voir',0),('caissier','utilisateurs','creer',0),('caissier','utilisateurs','modifier',0),('caissier','utilisateurs','supprimer',0),('caissier','utilisateurs','exporter',0),
--- Magasinier : produits + stock + fournisseurs
-('magasinier','produits','voir',1),('magasinier','produits','creer',1),('magasinier','produits','modifier',1),('magasinier','produits','supprimer',0),('magasinier','produits','exporter',0),
-('magasinier','stock','voir',1),('magasinier','stock','creer',1),('magasinier','stock','modifier',1),('magasinier','stock','supprimer',0),('magasinier','stock','exporter',0),
-('magasinier','ventes','voir',1),('magasinier','ventes','creer',0),('magasinier','ventes','modifier',0),('magasinier','ventes','supprimer',0),('magasinier','ventes','exporter',0),
-('magasinier','rapports','voir',0),('magasinier','rapports','creer',0),('magasinier','rapports','modifier',0),('magasinier','rapports','supprimer',0),('magasinier','rapports','exporter',0),
-('magasinier','fournisseurs','voir',1),('magasinier','fournisseurs','creer',1),('magasinier','fournisseurs','modifier',1),('magasinier','fournisseurs','supprimer',0),('magasinier','fournisseurs','exporter',0),
-('magasinier','messagerie','voir',1),('magasinier','messagerie','creer',1),('magasinier','messagerie','modifier',0),('magasinier','messagerie','supprimer',1),('magasinier','messagerie','exporter',0),
-('magasinier','utilisateurs','voir',0),('magasinier','utilisateurs','creer',0),('magasinier','utilisateurs','modifier',0),('magasinier','utilisateurs','supprimer',0),('magasinier','utilisateurs','exporter',0)
-ON DUPLICATE KEY UPDATE autorise = VALUES(autorise);
-
--- ============================================================
--- MIGRATION : Ajout de la note sur les ventes
--- Exécuter dans phpMyAdmin si la colonne n'existe pas encore
--- ============================================================
-ALTER TABLE ventes
-    ADD COLUMN IF NOT EXISTS note VARCHAR(500) NULL DEFAULT NULL
-    AFTER monnaie_rendue;
-
--- ============================================================
--- MIGRATION : Ajout image produit
--- ============================================================
-ALTER TABLE produits
-    ADD COLUMN IF NOT EXISTS image VARCHAR(255) NULL DEFAULT NULL
-    AFTER code_barre;
-
--- ============================================================
--- MIGRATION : Historique des connexions utilisateurs
--- ============================================================
-CREATE TABLE IF NOT EXISTS connexions_log (
-    id             INT AUTO_INCREMENT PRIMARY KEY,
-    utilisateur_id INT UNSIGNED NOT NULL,
-    ip             VARCHAR(45)  NOT NULL DEFAULT '',
-    user_agent     VARCHAR(255) DEFAULT NULL,
-    statut         ENUM('succes','echec') NOT NULL DEFAULT 'succes',
-    created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_uid  (utilisateur_id),
-    INDEX idx_date (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

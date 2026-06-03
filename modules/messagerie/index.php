@@ -45,41 +45,57 @@
 
     <style>
     .msg-layout { display:grid; grid-template-columns:260px 1fr; gap:1.25rem; min-height:calc(100vh - 140px); }
-    .msg-sidebar { background:#fff; border-radius:14px; border:1px solid #e8edf2; padding:1rem; display:flex; flex-direction:column; gap:.5rem; }
-    .msg-sidebar .btn-compose { background:var(--bleu); color:#fff; border:none; border-radius:10px; padding:.75rem 1rem; font-weight:700; font-size:.9rem; width:100%; cursor:pointer; transition:background .2s; display:flex; align-items:center; justify-content:center; gap:.5rem; }
-    .msg-sidebar .btn-compose:hover { background:#153F6E; }
-    .msg-nav-item { display:flex; align-items:center; gap:.6rem; padding:.6rem .75rem; border-radius:8px; cursor:pointer; font-size:.88rem; font-weight:600; color:#475569; transition:all .15s; text-decoration:none; }
-    .msg-nav-item:hover { background:#f1f5f9; color:var(--bleu); }
-    .msg-nav-item.active { background:#EBF3FB; color:var(--bleu); }
-    .msg-nav-item .badge { margin-left:auto; background:#ef4444; color:#fff; border-radius:20px; font-size:.7rem; padding:2px 7px; }
+    .msg-sidebar { background:#fff; border-radius:20px; border:1px solid #e2e8f2; padding:1.2rem; display:flex; flex-direction:column; gap:.75rem; box-shadow:0 12px 30px rgba(15, 23, 42, .05); }
+    .msg-sidebar .btn-compose { background:var(--bleu); color:#fff; border:none; border-radius:14px; padding:.95rem 1rem; font-weight:700; font-size:.95rem; width:100%; cursor:pointer; transition:background .2s, transform .2s; display:flex; align-items:center; justify-content:center; gap:.5rem; }
+    .msg-sidebar .btn-compose:hover { background:#153F6E; transform:translateY(-1px); }
+    .msg-search { margin-top:1rem; }
+    .msg-search input { width:100%; border-radius:14px; border:1px solid #e2e8f2; padding:.8rem 1rem; font-size:.95rem; color:#0f172a; background:#f8fafc; }
 
-    .msg-panel { background:#fff; border-radius:14px; border:1px solid #e8edf2; display:flex; flex-direction:column; overflow:hidden; }
-    .msg-panel-header { padding:.9rem 1.2rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
-    .msg-panel-header h5 { margin:0; font-size:1rem; font-weight:700; color:#1e293b; }
+    .msg-nav-item { display:flex; align-items:center; gap:.75rem; padding:.85rem 1rem; border-radius:16px; cursor:pointer; font-size:.92rem; font-weight:600; color:#475569; transition:all .2s; text-decoration:none; border:1px solid transparent; }
+    .msg-nav-item:hover { background:#f8fafc; color:var(--bleu); border-color:#e2e8f2; }
+    .msg-nav-item.active { background:#EFF6FF; color:var(--bleu); border-color:#dbeafe; }
+    .msg-nav-item .badge { margin-left:auto; background:#ef4444; color:#fff; border-radius:20px; font-size:.72rem; padding:3px 9px; }
 
-    .msg-list { flex:1; overflow-y:auto; }
-    .msg-item { display:flex; align-items:flex-start; gap:.75rem; padding:.85rem 1.2rem; border-bottom:1px solid #f8fafc; cursor:pointer; transition:background .15s; text-decoration:none; color:inherit; }
-    .msg-item:hover { background:#f8fafc; }
-    .msg-item.unread { background:#EBF3FB; }
-    .msg-item.unread .msg-sujet { font-weight:700; color:#1e293b; }
-    .msg-avatar { width:38px; height:38px; border-radius:50%; background:var(--bleu); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; flex-shrink:0; }
+    .msg-panel { background:linear-gradient(180deg,#f8fafc 0%,#eef2ff 100%); border-radius:20px; border:none; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 18px 50px rgba(15, 23, 42, .06); }
+    .msg-panel-header { padding:1.1rem 1.4rem; border-bottom:1px solid #e2e8f2; display:flex; align-items:center; justify-content:space-between; background:#fff; }
+    .msg-panel-header h5 { margin:0; font-size:1.08rem; font-weight:800; color:#0f172a; }
+
+    .msg-list { flex:1; overflow-y:auto; padding:1rem 0; background:transparent; }
+    .msg-list::-webkit-scrollbar { width:8px; }
+    .msg-list::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:999px; }
+    .msg-list::-webkit-scrollbar-track { background:transparent; }
+    .msg-item { display:flex; align-items:flex-start; gap:1rem; padding:1rem 1.15rem; border-radius:18px; margin:.4rem 1rem; background:#fff; border:1px solid transparent; box-shadow:0 8px 24px rgba(15, 23, 42, .05); transition:transform .2s, box-shadow .2s, border-color .2s; }
+    .msg-item:hover { background:#fff; transform:translateY(-1px); border-color:#e2e8f2; box-shadow:0 12px 28px rgba(15, 23, 42, .1); }
+    .msg-item.unread { background:#EFF6FF; }
+    .msg-item.unread .msg-sujet { font-weight:700; color:#0f172a; }
+    .msg-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#22c55e); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.95rem; flex-shrink:0; box-shadow:0 10px 20px rgba(37, 99, 235, .14); }
     .msg-meta { flex:1; min-width:0; }
-    .msg-nom { font-size:.85rem; font-weight:600; color:#334155; }
-    .msg-sujet { font-size:.82rem; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .msg-apercu { font-size:.78rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .msg-date { font-size:.75rem; color:#94a3b8; white-space:nowrap; flex-shrink:0; }
-    .msg-unread-dot { width:8px; height:8px; border-radius:50%; background:var(--bleu); flex-shrink:0; margin-top:6px; }
+    .msg-nom { font-size:.88rem; font-weight:700; color:#1e293b; }
+    .msg-sujet { font-size:.85rem; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .msg-apercu { font-size:.79rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:.35rem; }
+    .msg-date { font-size:.75rem; color:#64748b; white-space:nowrap; flex-shrink:0; }
+    .msg-unread-dot { width:10px; height:10px; border-radius:50%; background:var(--bleu); flex-shrink:0; margin-top:8px; }
 
-    .msg-detail { padding:1.5rem; }
-    .msg-detail-header { border-bottom:1px solid #f1f5f9; padding-bottom:1rem; margin-bottom:1rem; }
-    .msg-detail-sujet { font-size:1.2rem; font-weight:700; color:#1e293b; margin-bottom:.5rem; }
-    .msg-detail-meta { font-size:.83rem; color:#64748b; }
-    .msg-detail-corps { font-size:.92rem; color:#334155; line-height:1.7; white-space:pre-wrap; }
+    .msg-detail { padding:1.5rem; background:transparent; min-height:calc(100vh - 240px); }
+    .msg-detail-header { background:#fff; border-radius:24px; padding:1.5rem 1.6rem; display:flex; flex-direction:column; gap:.85rem; box-shadow:0 16px 40px rgba(15, 23, 42, .06); border:1px solid #e2e8f0; }
+    .msg-detail-sujet { font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0; }
+    .msg-detail-meta { font-size:.88rem; color:#475569; display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+    .msg-detail-corps { font-size:.96rem; color:#334155; line-height:1.9; white-space:pre-wrap; }
+
+    .chat-thread { display:flex; flex-direction:column; gap:1rem; margin-top:1.5rem; }
+    .msg-bubble { max-width:720px; padding:1.35rem 1.4rem; border-radius:24px; position:relative; box-shadow:0 20px 40px rgba(15, 23, 42, .08); }
+    .msg-bubble.incoming { align-self:flex-start; background:#fff; border-top-left-radius:4px; }
+    .msg-bubble.incoming::after { content:''; position:absolute; left:-12px; top:18px; width:18px; height:18px; background:#fff; border-radius:0 0 0 18px; box-shadow:0 5px 10px rgba(15,23,42,.04); }
+    .msg-bubble.outgoing { align-self:flex-end; background:linear-gradient(135deg,#2563eb,#22c55e); color:#fff; border-top-right-radius:4px; }
+    .msg-bubble.outgoing::after { content:''; position:absolute; right:-12px; top:18px; width:18px; height:18px; background:linear-gradient(135deg,#2563eb,#22c55e); border-radius:0 0 18px 0; }
+    .msg-bubble-meta { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; font-size:.83rem; color:#64748b; }
+    .msg-bubble.outgoing .msg-bubble-meta { color:rgba(255,255,255,.85); }
+    .msg-bubble-label { font-weight:700; }
 
     .vide-msg { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; color:#94a3b8; padding:3rem; text-align:center; }
     .vide-msg i { font-size:3rem; margin-bottom:1rem; opacity:.3; }
 
-    @media(max-width:768px) { .msg-layout { grid-template-columns:1fr; } }
+    @media(max-width:768px) { .msg-layout { grid-template-columns:1fr; } .msg-sidebar { order:2; } .msg-panel { order:1; } }
     </style>
 
     <div class="msg-layout">
@@ -89,7 +105,9 @@
             <button class="btn-compose" data-bs-toggle="modal" data-bs-target="#modalCompose">
                 <i class="bi bi-pencil-square"></i> Nouveau message
             </button>
-
+            <div class="msg-search">
+                <input type="text" class="form-control" placeholder="Rechercher un message..." disabled>
+            </div>
             <div style="margin-top:.5rem;">
                 <a href="?onglet=recus" class="msg-nav-item <?= $onglet==='recus'?'active':'' ?>">
                     <i class="bi bi-inbox"></i> Boite de reception
@@ -157,7 +175,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="msg-detail-corps"><?= nl2br(clean($msg['contenu'])) ?></div>
+                <div class="chat-thread">
+                    <div class="msg-bubble <?= $moi ? 'outgoing' : 'incoming' ?>">
+                        <div class="msg-bubble-meta">
+                            <span class="msg-bubble-label"><?= $moi ? 'Envoyé à' : 'Reçu de' ?></span>
+                            <span><?= date('d/m/Y H:i', strtotime($msg['created_at'])) ?></span>
+                        </div>
+                        <div class="msg-detail-corps"><?= nl2br(clean($msg['contenu'])) ?></div>
+                    </div>
+                </div>
             </div>
             <?php else: ?>
             <div class="vide-msg"><i class="bi bi-envelope-x"></i><p>Message introuvable.</p></div>
